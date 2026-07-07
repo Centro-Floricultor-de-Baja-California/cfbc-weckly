@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════
+# Render Deployment Configuration
+# ═══════════════════════════════════════════════════════════════
+# Deploy as a Docker container on Render.
+#
+# Steps:
+#   1. Push this repo to GitHub
+#   2. In Render, create a "New Web Service" and connect your repo
+#   3. Render will auto-detect the Dockerfile
+#   4. Set the following Environment Variables:
+#      - SHAREPOINT_URL_WK: <your sharepoint url>
+#      - SHAREPOINT_URL_PR: <your sharepoint url>
+#      - SHAREPOINT_URL_CONTEO: <your sharepoint url>
+#      - SHAREPOINT_URL_CONTEO_MARLEN: <your sharepoint url>
+#      - SHAREPOINT_URL_NOMINA: <your sharepoint url>
+#      - SHAREPOINT_URL_SIEMBRA_DETALLE: <your sharepoint url>
+#      - SHAREPOINT_URL_WEEKLY: <your sharepoint url>
+#      - SHAREPOINT_URL_WEEKLY_2026: <your sharepoint url>
+#      - GOOGLE_DRIVE_URL_TRANSPORTE: <your url>
+#      - sharepoint__tenant_id: <your tenant id>
+#      - sharepoint__client_id: <your client id>
+#      - sharepoint__client_secret: <your client secret>
+#
+#   IMPORTANT: The data_extractor.py uses `st.secrets["urls"]` for
+#   SharePoint URLs and `st.secrets["sharepoint"]` for MS Graph auth.
+#   We include a compatibility layer through environment variables.
+
+services:
+  - type: web
+    name: cfbc-weckly
+    runtime: image
+    repo: https://github.com/YOUR_USERNAME/cfbc-weckly  # 👈 CHANGE THIS
+    dockerfilePath: ./Dockerfile
+    dockerContext: ./
+    plan: starter  # $7/month — enough for this app
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: SHAREPOINT_URL_WK
+        sync: false
+      - key: SHAREPOINT_URL_PR
+        sync: false
+      - key: SHAREPOINT_URL_CONTEO
+        sync: false
+      - key: SHAREPOINT_URL_CONTEO_MARLEN
+        sync: false
+      - key: SHAREPOINT_URL_NOMINA
+        sync: false
+      - key: SHAREPOINT_URL_SIEMBRA_DETALLE
+        sync: false
+      - key: SHAREPOINT_URL_WEEKLY
+        sync: false
+      - key: SHAREPOINT_URL_WEEKLY_2026
+        sync: false
+      - key: GOOGLE_DRIVE_URL_TRANSPORTE
+        sync: false
+      - key: sharepoint__tenant_id
+        sync: false
+      - key: sharepoint__client_id
+        sync: false
+      - key: sharepoint__client_secret
+        sync: false

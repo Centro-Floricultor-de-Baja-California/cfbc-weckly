@@ -1,0 +1,13 @@
+node_modules
+.git
+__pycache__
+*.pyc
+.env
+.venv
+venv
+*.log
+.vscode
+.idea
+dist
+*.egg-info
+.DS_Store

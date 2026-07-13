@@ -27,7 +27,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/pacificafarms-dev/cfbc-weckly
+          images: ghcr.io/Centro-Floricultor-de-Baja-California/cfbc-weckly
           tags: |
             type=raw,value=latest
             type=sha,format=short

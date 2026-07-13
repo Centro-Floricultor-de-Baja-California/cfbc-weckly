@@ -31,7 +31,7 @@ export interface UnifiedRow {
   template: `
     @if (visible() && cellData()) {
       <div class="prod-panel-wrapper" 
-           style="display: flex; flex-direction: column; width: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+           style="display: flex; flex-direction: column; width: 100%; font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;">
         
         <!-- Encabezado Limpio sin Caja (Solo Texto y Línea Negra) -->
         <div style="background-color: transparent; color: #1e293b; border-bottom: 2px solid #000000; padding: 8px 4px; display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box;">

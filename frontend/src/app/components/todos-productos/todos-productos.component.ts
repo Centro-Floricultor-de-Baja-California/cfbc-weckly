@@ -58,7 +58,7 @@ function sumUnits(val1: any, val2: any): string {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div style="min-h-screen bg-gray-50; font-family: 'Inter', system-ui, -apple-system, sans-serif; padding: 24px; background-color: #f8fafc;">
+    <div style="min-h-screen bg-gray-50; font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif; padding: 24px; background-color: #f8fafc;">
       
       <!-- Loading Screen -->
       @if (loading()) {

@@ -23,7 +23,7 @@ module.exports = {
         wine: '#8a1c32',
       },
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        sans: ['Source Sans 3', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
       },
       fontSize: {
         '2xs': '0.625rem',

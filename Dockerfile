@@ -14,7 +14,7 @@ RUN npm install --legacy-peer-deps
 COPY frontend/ ./
 
 # Build Angular app for production
-RUN npx ng build --configuration production
+RUN npx ng build --configuration production --deploy-url /static/
 
 # ═══════════════════════════════════════════════════════════════
 # STAGE 2: Python Backend + Serve

@@ -508,7 +508,7 @@ input[type="range"]::-webkit-slider-thumb {
 .cfbc-loader {
   padding: 24px;
   overflow: hidden;
-  background-image: url('/assets/cfbc-field-loading.webp');
+  background-image: url('assets/cfbc-field-loading.webp');
   background-size: cover;
   background-position: center;
   backdrop-filter: none;

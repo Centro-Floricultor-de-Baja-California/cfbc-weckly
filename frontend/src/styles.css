@@ -2,8 +2,6 @@
    CFBC WECKLY — Estilos IDÉNTICOS al original de Streamlit
    ══════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
 :root {
   --navy:   #7d3434; /* Softer, muted burgundy */
   --green:  #8a1c32;
@@ -34,7 +32,7 @@
 }
 
 body {
-  font-family: 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Source Sans 3', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 11px;
   background: #fafafa;
 }
@@ -45,7 +43,7 @@ body {
   background: linear-gradient(135deg, #5a1414 0%, #3a0909 50%, #000000 100%);
   backdrop-filter: blur(10px);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+  font-family: 'Source Sans 3', 'Segoe UI', Calibri, Arial, sans-serif;
 }
 .cfbc-loader-brand {
   font-size: 28px; font-weight: 800; color: #ffffff;
@@ -292,7 +290,7 @@ select.tb-sel:focus {
   min-width: 100%;
   table-layout: fixed;
   font-size: 11px;
-  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
   white-space: nowrap;
 }
 .pt-table th {
@@ -476,7 +474,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* --- ADMIN THEME for Mano de Obra --- */
-.admin-theme .pt-table { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; color: #333333; }
+.admin-theme .pt-table { font-family: 'Source Sans 3', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important; color: #333333; }
 .admin-theme .pt-table th { background: #2b3a4a !important; color: #ffffff !important; border-left: 1px solid #3e5062 !important; border-bottom: 1px solid #1a2530 !important; border-right: 1px solid #1a2530 !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none !important; }
 .admin-theme .pt-table th[style*="border-left:2px solid"] { border-left: 2px solid #5a738e !important; }
 .admin-theme .pt-table th[style*="border-left:3px solid"] { border-left: 3px solid #1a2530 !important; }
@@ -486,3 +484,216 @@ input[type="range"]::-webkit-slider-thumb {
 .admin-theme .pt-row-group td span { color: #7a8b9a !important; font-size: 10px; margin-right: 4px; }
 .admin-theme .mo-detail td { background: #ffffff !important; border-bottom: 1px solid #eaedf1 !important; border-right: 1px solid #eaedf1 !important; }
 .admin-theme .mo-detail td:first-child { font-style: italic; padding-left: 24px !important; }
+
+/* ── 2026 VISUAL REFINEMENT ─────────────────────────── */
+:root {
+  --navy: #681726;
+  --green: #15803d;
+  --red: #c24141;
+  --amber: #b7791f;
+  --blue: #7a1e32;
+  --border: #e7e3e4;
+  --pt-hdr-bg: #681726;
+  --pt-hdr-border: #53101d;
+  --pt-grp-bg: #f7f3f4;
+  --pt-grp-fg: #681726;
+  --pt-sub-bg: #ffffff;
+  --pt-sub-fg: #333033;
+  --pt-tot-bg: #f2eaec;
+  --pt-tot-fg: #681726;
+  --pt-row-hover: #fbf5f6;
+  --pt-cell-border: #e9e5e6;
+}
+
+.cfbc-loader {
+  padding: 24px;
+  overflow: hidden;
+  background-image: url('assets/cfbc-field-loading.webp');
+  background-size: cover;
+  background-position: center;
+  backdrop-filter: none;
+  font-family: 'Source Sans 3', 'Segoe UI', Calibri, Arial, sans-serif;
+}
+
+.cfbc-loader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(25, 4, 9, 0.02), rgba(25, 4, 9, 0.24) 82%),
+    linear-gradient(120deg, rgba(104, 23, 38, 0.30), rgba(26, 5, 10, 0.22));
+}
+
+.cfbc-loader-panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  padding: 42px 46px 38px;
+  text-align: center;
+  color: #ffffff;
+  background: rgba(38, 7, 13, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+.cfbc-loader-brand {
+  margin-bottom: 6px;
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 7px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.32);
+}
+
+.cfbc-loader-sub {
+  margin-bottom: 0;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 10px;
+  letter-spacing: 3.5px;
+}
+
+.cfbc-loader-copy {
+  margin: 34px 0 28px;
+}
+
+.cfbc-loader-copy h1 {
+  margin: 0 0 10px;
+  color: #ffffff;
+  font-size: clamp(21px, 3vw, 27px);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.35px;
+}
+
+.cfbc-loader-copy p {
+  max-width: 390px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.cfbc-loader-bar-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+.cfbc-loader-bar-fill {
+  width: 38%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #f0c9d1, rgba(255, 255, 255, 0));
+  box-shadow: 0 0 14px rgba(240, 201, 209, 0.6);
+  border-radius: 999px;
+  animation-duration: 1.45s;
+}
+
+.cfbc-loader-status {
+  margin-top: 18px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.pt-row:nth-child(even) td,
+.cmp-row:nth-child(even) td {
+  background: #fcfbfb;
+}
+
+.cell-pos,
+.chg-pos {
+  color: #15803d !important;
+  font-weight: 650;
+}
+
+.cell-neg,
+.chg-neg {
+  color: #c24141 !important;
+  font-weight: 650;
+}
+
+.cell-navy {
+  color: #681726 !important;
+  font-weight: 650;
+}
+
+/* Shared compact data tables */
+.cfbc-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #302d2f;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.cfbc-table th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 7px 9px;
+  color: #ffffff;
+  background: var(--pt-hdr-bg);
+  border-right: 1px solid var(--pt-hdr-border);
+  border-bottom: 1px solid var(--pt-hdr-border);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+}
+
+.cfbc-table td {
+  height: 26px;
+  padding: 5px 9px;
+  background: #ffffff;
+  border-right: 1px solid var(--pt-cell-border);
+  border-bottom: 1px solid var(--pt-cell-border);
+}
+
+.cfbc-table tbody tr:nth-child(even) td { background: #fcfbfb; }
+.cfbc-table tbody tr:hover td { background: var(--pt-row-hover); }
+.cfbc-table th.pinned,
+.cfbc-table td.pinned { position: sticky; z-index: 4; }
+.cfbc-table td.pinned { z-index: 2; background: inherit; }
+.cfbc-table .group-row td { color: var(--pt-grp-fg); background: var(--pt-grp-bg); font-weight: 700; }
+.cfbc-table .sub-row td { background: var(--pt-sub-bg); font-weight: 650; }
+.cfbc-table .total-row td { color: var(--pt-tot-fg); background: var(--pt-tot-bg); font-weight: 750; }
+
+.pt-table,
+.cmp-tbl,
+.cfbc-table,
+input,
+select {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keep the labor table in the same CFBC visual language. */
+.admin-theme .pt-table th {
+  background: #681726 !important;
+  border-left-color: #7f2a3c !important;
+  border-right-color: #53101d !important;
+  border-bottom-color: #53101d !important;
+  font-weight: 600 !important;
+}
+
+.admin-theme .pt-table th[style*="border-left:2px solid"] { border-left-color: #a55a68 !important; }
+.admin-theme .pt-table th[style*="border-left:3px solid"] { border-left-color: #53101d !important; }
+.admin-theme .pt-table th[style*="background:#fafafa"] { background: #f0e8ea !important; color: #681726 !important; }
+.admin-theme .pt-table th[style*="background:#eecdd3"] { background: #dfc8cd !important; color: #53101d !important; }
+.admin-theme .pt-row-group td { background: #f7f3f4 !important; border-bottom-color: #e2d9db !important; }
+.admin-theme .pt-row-group td span { color: #8c7379 !important; }
+
+@media (max-width: 640px) {
+  .cfbc-loader { padding: 16px; }
+  .cfbc-loader-panel { padding: 34px 24px 30px; border-radius: 14px; }
+  .cfbc-loader-copy { margin: 28px 0 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cfbc-loader-bar-fill,
+  .cfbc-loader-dot { animation-duration: 3s; }
+}

@@ -58,7 +58,7 @@ function sumUnits(val1: any, val2: any): string {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div style="min-h-screen bg-gray-50; font-family: 'Inter', system-ui, -apple-system, sans-serif; padding: 24px; background-color: #f8fafc;">
+    <div style="min-h-screen bg-gray-50; font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif; padding: 24px; background-color: #f8fafc;">
       
       <!-- Loading Screen -->
       @if (loading()) {
@@ -148,12 +148,8 @@ function sumUnits(val1: any, val2: any): string {
                     [style.backgroundColor]="r.isSiembra ? '#f0fdf4' : '#ffffff'">
                   
                   <!-- Ubicación -->
-                  <td style="padding: 8px 14px; vertical-align: middle;">
-                    @if (r.ubicacion === 'SIEMBRA') {
-                      <span style="background-color: #d1fae5; color: #065f46; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 9.5px; letter-spacing: 0.05em; display: inline-block; border: 1px solid #a7f3d0;">SIEMBRA</span>
-                    } @else {
-                      <span style="background-color: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: 600; font-size: 9.5px; letter-spacing: 0.05em; display: inline-block; border: 1px solid #bae6fd;">{{ r.ubicacion }}</span>
-                    }
+                  <td style="padding: 8px 14px; vertical-align: middle; font-weight: 500; color: #475569; font-size: 11px;">
+                    {{ r.ubicacion }}
                   </td>
 
                   <!-- Producto -->

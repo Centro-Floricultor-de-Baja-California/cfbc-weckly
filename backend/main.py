@@ -115,6 +115,14 @@ async def get_all_data():
     return SafeJSONResponse(content=_load_data())
 
 
+@app.post("/api/reload")
+async def reload_data():
+    """Clear the data cache so the next request fetches fresh data."""
+    global _data_cache
+    _data_cache = None
+    return {"status": "Cache cleared."}
+
+
 @app.get("/api/config")
 async def get_config():
     data = _load_data()

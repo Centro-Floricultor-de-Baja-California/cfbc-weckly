@@ -31,7 +31,7 @@ export interface UnifiedRow {
   template: `
     @if (visible() && cellData()) {
       <div class="prod-panel-wrapper" 
-           style="display: flex; flex-direction: column; width: 100%; font-family: 'Inter', system-ui, -apple-system, sans-serif;">
+           style="display: flex; flex-direction: column; width: 100%; font-family: 'Source Sans 3', system-ui, -apple-system, sans-serif;">
         
         <!-- Encabezado Limpio sin Caja (Solo Texto y Línea Negra) -->
         <div style="background-color: transparent; color: #1e293b; border-bottom: 2px solid #000000; padding: 8px 4px; display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box;">
@@ -110,12 +110,8 @@ export interface UnifiedRow {
                       [style.backgroundColor]="r.isSiembra ? '#f0fdf4' : '#ffffff'">
                     
                     <!-- Ubicación con Badges Modernos -->
-                    <td style="padding: 4px 8px; vertical-align: middle;">
-                      @if (r.ubicacion === 'SIEMBRA') {
-                        <span style="background-color: #d1fae5; color: #065f46; padding: 1px 4px; border-radius: 4px; font-weight: 600; font-size: 9px; letter-spacing: 0.05em; display: inline-block; border: 1px solid #a7f3d0;">SIEMBRA</span>
-                      } @else {
-                        <span style="background-color: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 4px; font-weight: 600; font-size: 9px; letter-spacing: 0.05em; display: inline-block; border: 1px solid #bae6fd;">{{ r.ubicacion }}</span>
-                      }
+                    <td style="padding: 4px 8px; vertical-align: middle; font-weight: 500; color: #475569; font-size: 11px;">
+                      {{ r.ubicacion }}
                     </td>
 
                     <!-- Producto con arrow si es expandible -->

@@ -69,12 +69,21 @@ import { YEAR_COLORS, CurrencyType } from '../../models/types';
         <div class="tb-sep"></div>
         <button class="tb-btn" style="color:#16a34a;border-color:#16a34a;" (click)="verProductos.emit()">VER PRODUCTOS</button>
       }
+
+      <div class="tb-sep"></div>
+      
+      <!-- Reload Button using Bootstrap & FontAwesome -->
+      <button class="btn btn-sm d-flex align-items-center gap-2 ms-auto" style="background-color: #800020; color: white; border: none; font-size: 0.75rem; padding: 4px 8px;" (click)="reload.emit()" title="Recargar datos nuevos">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>Recargar</span>
+      </button>
     </div>
   `,
 })
 export class ToolbarComponent {
   readonly YEAR_COLORS = YEAR_COLORS;
   readonly verProductos = output<void>();
+  readonly reload = output<void>();
 
   protected ranchOpen = signal(false);
   protected ranchPos = signal({ top: 0, left: 0 });

@@ -19,6 +19,11 @@ export class ApiService {
     return this.http.get<{ status: string }>(`${this.baseUrl}/health`);
   }
 
+  /** Reload cache */
+  reloadCache(): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(`${this.baseUrl}/reload`, {});
+  }
+
   /** Config only */
   getConfig(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/config`);

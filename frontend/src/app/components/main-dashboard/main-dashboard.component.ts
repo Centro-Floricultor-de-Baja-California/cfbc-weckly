@@ -30,7 +30,7 @@ import { ProductPanelComponent } from '../product-panel/product-panel.component'
     @if (stateService.state().loaded) {
       <div class="min-h-screen bg-gray-50">
         <!-- App Toolbar -->
-        <app-toolbar (verProductos)="onVerProductos()" />
+        <app-toolbar (verProductos)="onVerProductos()" (reload)="onReload()" />
 
         <!-- View Tabs -->
         <div class="view-tabs-container">
@@ -112,6 +112,23 @@ export class MainDashboardComponent implements OnInit {
     const currency = s.currency;
     const url = `/todos-productos?yr=${yr}&fromWk=${fromWk}&toWk=${toWk}&cat=${encodeURIComponent(cat)}&currency=${currency}`;
     window.open(url, '_blank');
+  }
+
+  protected onReload() {
+    this.error.set(null);
+    this.stateService.state.update(s => ({ ...s, loading: true }));
+    
+    // Clear backend cache, then fetch fresh data
+    this.apiService.reloadCache().subscribe({
+      next: () => {
+        this.loadData();
+      },
+      error: (err: any) => {
+        console.error('Error vaciando caché:', err);
+        this.error.set(err.message || 'Error al recargar');
+        this.stateService.state.update(s => ({ ...s, loading: false }));
+      }
+    });
   }
 
   constructor(

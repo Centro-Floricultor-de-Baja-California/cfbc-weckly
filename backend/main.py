@@ -49,14 +49,20 @@ if STATIC_DIR.exists():
 
     @app.get("/")
     async def serve_index():
-        return FileResponse(str(STATIC_DIR / "index.html"))
+        return FileResponse(
+            str(STATIC_DIR / "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+        )
 
     @app.exception_handler(404)
     async def not_found_handler(request, exc):
         # For SPA routing, serve index.html for non-API routes
         path = request.url.path
         if not path.startswith("/api/"):
-            return FileResponse(str(STATIC_DIR / "index.html"))
+            return FileResponse(
+                str(STATIC_DIR / "index.html"),
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+            )
         return JSONResponse(content={"error": "Not found"}, status_code=404)
 
 

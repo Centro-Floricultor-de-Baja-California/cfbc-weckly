@@ -512,6 +512,9 @@ input[type="range"]::-webkit-slider-thumb {
 .admin-theme .pt-row-group td span { color: #7a8b9a !important; font-size: 10px; margin-right: 4px; }
 .admin-theme .mo-detail td { background: #ffffff !important; border-bottom: 1px solid #eaedf1 !important; border-right: 1px solid #eaedf1 !important; }
 .admin-theme .mo-detail td:first-child { font-style: italic; padding-left: 24px !important; }
+.admin-theme .mo-detail.mo-headcount-row td { background: #e8f4f2 !important; border-bottom: 1px solid #cfe4df !important; border-right: 1px solid #cfe4df !important; }
+.admin-theme .mo-detail.mo-headcount-row td:first-child { background: #deefec !important; border-left: 3px solid #80b7ae !important; }
+.admin-theme .mo-detail.mo-headcount-row td:not(:first-child):not(.hc-diff-cell) { background: #e1f0ed !important; color: #111827 !important; font-size: 12px !important; font-weight: 400 !important; }
 
 /* ── 2026 VISUAL REFINEMENT ─────────────────────────── */
 :root {

@@ -155,7 +155,7 @@ export class RanchoViewComponent {
     const sumRecs = (recs: any[]) => {
       let t = 0;
       for (const r of recs) {
-        if (ranches.includes('Todos')) {
+        if (this.state().activeRanches.includes('Todos')) {
           t += cur === 'usd' ? (r.usd_total || 0) : (r.mxn_total || 0);
         } else {
           const src = cur === 'usd' ? (r.usd_ranches || {}) : (r.mxn_ranches || {});

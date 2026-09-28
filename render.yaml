@@ -16,6 +16,7 @@
 #      - SHAREPOINT_URL_SIEMBRA_DETALLE: <your sharepoint url>
 #      - SHAREPOINT_URL_WEEKLY: <your sharepoint url>
 #      - SHAREPOINT_URL_WEEKLY_2026: <your sharepoint url>
+#      - SHAREPOINT_URL_HEADCOUNT: <your sharepoint url>
 #      - GOOGLE_DRIVE_URL_TRANSPORTE: <your url>
 #      - sharepoint__tenant_id: <your tenant id>
 #      - sharepoint__client_id: <your client id>
@@ -51,6 +52,8 @@ services:
       - key: SHAREPOINT_URL_WEEKLY
         sync: false
       - key: SHAREPOINT_URL_WEEKLY_2026
+        sync: false
+      - key: SHAREPOINT_URL_HEADCOUNT
         sync: false
       - key: GOOGLE_DRIVE_URL_TRANSPORTE
         sync: false

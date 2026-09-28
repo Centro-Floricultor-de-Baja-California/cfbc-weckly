@@ -25,12 +25,16 @@ ENV_MAP = {
         "SHAREPOINT_URL_SIEMBRA_DETALLE": "SHAREPOINT_URL_SIEMBRA_DETALLE",
         "SHAREPOINT_URL_WEEKLY": "SHAREPOINT_URL_WEEKLY",
         "SHAREPOINT_URL_WEEKLY_2026": "SHAREPOINT_URL_WEEKLY_2026",
+        "SHAREPOINT_URL_HEADCOUNT": "SHAREPOINT_URL_HEADCOUNT",
         "GOOGLE_DRIVE_URL_TRANSPORTE": "GOOGLE_DRIVE_URL_TRANSPORTE",
     },
     "sharepoint": {
         "tenant_id": "sharepoint__tenant_id",
         "client_id": "sharepoint__client_id",
         "client_secret": "sharepoint__client_secret",
+    },
+    "admin": {
+        "password": "CFBC_ADMIN_PASSWORD",
     },
 }
 
@@ -87,7 +91,7 @@ def _parse_toml_simple(path: Path) -> dict:
                 env_name = section_map.get(key)
                 if env_name:
                     result[env_name] = value
-                    print(f"[secrets_compat]   {env_name} = '{value[:20]}...'")
+                    print(f"[secrets_compat]   Loaded {env_name}")
     return result
 
 

@@ -50,6 +50,8 @@ const MO_GROUPS = [
   { label: 'IMP. 1.8%',          subcats: ['Imp. 1.8%'] },
 ]; // Force HMR
 
+type HeadcountType = 'planta' | 'contratistas';
+
 @Component({
   selector: 'app-servicios-view',
   standalone: true,
@@ -94,7 +96,8 @@ const MO_GROUPS = [
                   }
                 }
                 @if (showTotal()) {
-                  @for (key of weekKeys(); track key) {
+                  @if (showTotalWeeks()) {
+                    @for (key of weekKeys(); track key) {
                     <th style="border-left:1px solid rgba(255,255,255,0.2);font-size:9px;min-width:60px;background:var(--pt-hdr-bg);color:#fff;font-weight:600;padding:4px 6px;border-bottom:1px solid var(--pt-hdr-border);border-right:1px solid var(--pt-hdr-border);position:sticky;top:0;z-index:2;text-align:right;">
                       {{ shortLabel(key) }}
                     </th>
@@ -104,14 +107,15 @@ const MO_GROUPS = [
                     DIF
                   </th>
                 }
-                  @if (showYearTotals()) {
+                  }
+@if (showYearTotals()) {
                     @for (yr of totYears(); track yr; let yi = $index) {
                       <th [style.borderLeft]="yi === 0 ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--pt-hdr-border)'"
                           style="font-size:9px;min-width:90px;background:var(--pt-hdr-bg);color:#fff;font-weight:700;padding:4px 6px;border-bottom:1px solid var(--pt-hdr-border);border-right:1px solid var(--pt-hdr-border);position:sticky;top:0;z-index:2;text-align:right;">
                         {{ yr }}
                       </th>
                     }
-                    @if (totYears().length >= 2) {
+                    @if (showTotalWeeks() && totYears().length >= 2) {
                       @if (showWeekDif()) {
                   <th style="border-left:1px solid rgba(255,255,255,0.2);font-size:9px;min-width:70px;background:var(--pt-hdr-bg);color:#fff;font-weight:700;padding:4px 6px;border-bottom:1px solid var(--pt-hdr-border);border-right:1px solid var(--pt-hdr-border);position:sticky;top:0;z-index:2;text-align:right;">
                         DIF
@@ -135,6 +139,12 @@ const MO_GROUPS = [
                           title="Clic para expandir/contraer métricas">
                         <td style="padding:3px 8px;position:sticky;left:0;z-index:1;background:inherit !important;border-bottom:1px solid #e5e5e5;border-right:1px solid #ddd;font-weight:700;color:var(--pt-grp-fg);font-size:11px;">
                           <span>{{ isGroupExpanded(group.label) ? '− ' : '+ ' }}</span>{{ group.label }}
+                          @let operativoPeople = getOperativoHeadcountForSubcat(sc);
+                          @if (operativoPeople > 0) {
+                            <span style="display:inline-block;margin-left:8px;padding:2px 7px;border-radius:10px;background:#e7f3f0;color:#285e59;font-size:9px;font-weight:700;white-space:nowrap;">
+                              OPERATIVO: {{ fmtHc(operativoPeople) }} {{ operativoPeople === 1 ? 'PERSONA' : 'PERSONAS' }}
+                            </span>
+                          }
                         </td>
                         @for (rn of activeRanchesInData(); track rn) {
                           @for (key of weekKeys(); track key) {
@@ -153,7 +163,8 @@ const MO_GROUPS = [
 }
                         }
                         @if (showTotal()) {
-                          @for (key of weekKeys(); track key) {
+                          @if (showTotalWeeks()) {
+                            @for (key of weekKeys(); track key) {
                             <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                                 [style.color]="getWeekTotalVal(key, sc) > 0 ? '#5a1414' : '#ccc'"
                                 [style.fontWeight]="getWeekTotalVal(key, sc) > 0 ? '700' : '400'">
@@ -168,7 +179,8 @@ const MO_GROUPS = [
                             {{ wkDif !== 0 ? (wkDif > 0 ? '+' : '') + fmt(absVal(wkDif)) : '' }}
                           </td>
 }
-                          @if (showYearTotals()) {
+                          }
+@if (showYearTotals()) {
                             @for (yr of totYears(); track yr) {
                               <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                                   [style.color]="getTotalVal(yr, sc) > 0 ? '#5a1414' : '#ccc'"
@@ -176,7 +188,7 @@ const MO_GROUPS = [
                                 {{ getTotalVal(yr, sc) > 0 ? fmt(getTotalVal(yr, sc)) : '' }}
                               </td>
                             }
-                            @if (totYears().length >= 2) {
+                            @if (showTotalWeeks() && totYears().length >= 2) {
                               @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                                   [style.color]="getTotalDif(sc) !== 0 ? (getTotalDif(sc) > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
@@ -191,59 +203,62 @@ const MO_GROUPS = [
 
                       <!-- EXPANDED DETAIL ROWS -->
                       @if (isGroupExpanded(group.label)) {
-                        <!-- HC: Número de Personas (Headcount) -->
-                        <tr class="pt-row mo-detail">
+                        <!-- Personal por tipo de contratación -->
+                        @for (hcType of visibleHeadcountTypes(sc); track hcType.key) {
+                        <tr class="pt-row mo-detail mo-headcount-row">
                           <td class="pt-pinned"
-                              style="padding:3px 8px;padding-left:20px;border-bottom:1px solid #e5e5e5;border-right:1px solid #ddd;font-size:10px;color:#404040;background:#f0fdf4;">
-                            NÚMERO DE PERSONAS
+                              style="min-width:245px;padding:3px 8px;padding-left:20px;border-left:3px solid #8bbdb5;border-bottom:1px solid #d4e8e4;border-right:1px solid #c5ddd7;font-size:10px;font-weight:700;color:#285e59;background:#e7f3f0;">
+                            {{ hcType.label }}
                           </td>
                           @for (rn of activeRanchesInData(); track rn) {
                             @for (key of weekKeys(); track key) {
-                              <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#f0fdf4;"
-                                  [style.color]="getHcRanchVal(key, rn, sc) > 0 ? '#15803d' : '#86efac'"
-                                  [style.fontWeight]="getHcRanchVal(key, rn, sc) > 0 ? '600' : '400'">
-                                {{ getHcRanchVal(key, rn, sc) > 0 ? fmtHc(getHcRanchVal(key, rn, sc)) : '' }}
+                              <td style="padding:3px 6px;border-bottom:1px solid #d4e8e4;border-right:1px solid #d4e8e4;text-align:right;background:#eff8f6;"
+                                  [style.color]="getHcRanchVal(key, rn, sc, hcType.key) > 0 ? '#0f766e' : '#a7c9c3'"
+                                  [style.fontWeight]="getHcRanchVal(key, rn, sc, hcType.key) > 0 ? '600' : '400'">
+                                {{ getHcRanchVal(key, rn, sc, hcType.key) > 0 ? fmtHc(getHcRanchVal(key, rn, sc, hcType.key)) : '' }}
                               </td>
                             }
                             @if (showWeekDif()) {
-<td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#f0fdf4;"
-                                [style.color]="getHcDif(rn, sc) !== 0 ? (getHcDif(rn, sc) > 0 ? '#16a34a' : '#dc2626') : '#86efac'"
-                                [style.fontWeight]="getHcDif(rn, sc) !== 0 ? '700' : '400'">
-                              {{ getHcDif(rn, sc) !== 0 ? (getHcDif(rn, sc) > 0 ? '+' : '') + fmtHcDiff(absVal(getHcDif(rn, sc))) : '' }}
+<td class="hc-diff-cell" style="padding:3px 6px;border-bottom:1px solid #d4e8e4;border-right:1px solid #d4e8e4;text-align:right;background:#eff8f6;"
+                                [style.color]="getHcDif(rn, sc, hcType.key) !== 0 ? (getHcDif(rn, sc, hcType.key) > 0 ? '#16a34a' : '#dc2626') : '#a7c9c3'"
+                                [style.fontWeight]="getHcDif(rn, sc, hcType.key) !== 0 ? '700' : '400'">
+                              {{ getHcDif(rn, sc, hcType.key) !== 0 ? (getHcDif(rn, sc, hcType.key) > 0 ? '+' : '') + fmtHcDiff(absVal(getHcDif(rn, sc, hcType.key))) : '' }}
                             </td>
 }
                           }
                           @if (showTotal()) {
-                            @for (key of weekKeys(); track key) {
-                              @let hcV = getHcVal(key, sc);
-                              <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#f0fdf4;"
-                                  [style.color]="hcV > 0 ? '#15803d' : '#86efac'"
+                            @if (showTotalWeeks()) {
+                              @for (key of weekKeys(); track key) {
+                              @let hcV = getHcVal(key, sc, hcType.key);
+                              <td style="padding:3px 6px;border-bottom:1px solid #d4e8e4;border-right:1px solid #d4e8e4;text-align:right;background:#eff8f6;"
+                                  [style.color]="hcV > 0 ? '#0f766e' : '#a7c9c3'"
                                   [style.fontWeight]="hcV > 0 ? '700' : '400'">
                                 {{ hcV > 0 ? fmtHc(hcV) : '' }}
                               </td>
                             }
-                            @let hcWkDif = getHcVal(weekKeys()[weekKeys().length - 1], sc) - getHcVal(weekKeys()[0], sc);
+                            @let hcWkDif = getHcVal(weekKeys()[weekKeys().length - 1], sc, hcType.key) - getHcVal(weekKeys()[0], sc, hcType.key);
                             @if (showWeekDif()) {
-<td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#f0fdf4;"
-                                [style.color]="hcWkDif !== 0 ? (hcWkDif > 0 ? '#16a34a' : '#dc2626') : '#86efac'"
+<td class="hc-diff-cell" style="padding:3px 6px;border-bottom:1px solid #d4e8e4;border-right:1px solid #d4e8e4;text-align:right;background:#eff8f6;"
+                                [style.color]="hcWkDif !== 0 ? (hcWkDif > 0 ? '#16a34a' : '#dc2626') : '#a7c9c3'"
                                 [style.fontWeight]="hcWkDif !== 0 ? '700' : '400'">
                               {{ hcWkDif !== 0 ? (hcWkDif > 0 ? '+' : '') + fmtHcDiff(absVal(hcWkDif)) : '' }}
                             </td>
 }
-                            @if (showYearTotals()) {
+                            }
+@if (showYearTotals()) {
                               @for (yr of totYears(); track yr) {
-                                @let hcYrV = getHcYrVal(yr, sc);
-                                <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#f0fdf4;"
-                                    [style.color]="hcYrV > 0 ? '#15803d' : '#86efac'"
+                                @let hcYrV = getHcYrVal(yr, sc, hcType.key);
+                                <td style="padding:3px 6px;border-bottom:1px solid #d4e8e4;border-right:1px solid #d4e8e4;text-align:right;background:#eff8f6;"
+                                    [style.color]="hcYrV > 0 ? '#0f766e' : '#a7c9c3'"
                                     [style.fontWeight]="hcYrV > 0 ? '700' : '400'">
                                   {{ hcYrV > 0 ? fmtHc(hcYrV) : '' }}
                                 </td>
                               }
-                              @if (totYears().length >= 2) {
-                                @let hcTotDif = getHcTotalDif(sc);
+                              @if (showTotalWeeks() && totYears().length >= 2) {
+                                @let hcTotDif = getHcTotalDif(sc, hcType.key);
                                 @if (showWeekDif()) {
-<td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#f0fdf4;"
-                                    [style.color]="hcTotDif !== 0 ? (hcTotDif > 0 ? '#16a34a' : '#dc2626') : '#86efac'"
+<td class="hc-diff-cell" style="padding:3px 6px;border-bottom:1px solid #d4e8e4;border-right:1px solid #d4e8e4;text-align:right;background:#eff8f6;"
+                                    [style.color]="hcTotDif !== 0 ? (hcTotDif > 0 ? '#16a34a' : '#dc2626') : '#a7c9c3'"
                                     [style.fontWeight]="hcTotDif !== 0 ? '700' : '400'">
                                   {{ hcTotDif !== 0 ? (hcTotDif > 0 ? '+' : '') + fmtHcDiff(absVal(hcTotDif)) : '' }}
                                 </td>
@@ -252,6 +267,7 @@ const MO_GROUPS = [
                             }
                           }
                         </tr>
+                        }
 
                         <!-- ESQUEJES: flores + plantas (solo columna Propagacion) -->
                         @if (group.label === 'ESQUEJES' && data()?.esquejes_data?.length) {
@@ -289,7 +305,8 @@ const MO_GROUPS = [
                                 }
                               }
                               @if (showTotal()) {
-                                @for (key of weekKeys(); track key) {
+                                @if (showTotalWeeks()) {
+                                  @for (key of weekKeys(); track key) {
                                   @let eV = getEsquejePlantas(key, flor);
                                   <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
                                       [style.color]="eV > 0 ? '#166534' : '#86efac'"
@@ -305,7 +322,8 @@ const MO_GROUPS = [
                                   {{ eDif !== 0 ? (eDif > 0 ? '+' : '') + fmtHcDiff(absVal(eDif)) : '' }}
                                 </td>
 }
-                                @if (showYearTotals()) {
+                                }
+@if (showYearTotals()) {
                                   @for (yr of totYears(); track yr) {
                                     @let eYrV = getEsquejeYrTotal(yr, flor);
                                     <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
@@ -314,7 +332,7 @@ const MO_GROUPS = [
                                       {{ eYrV > 0 ? fmtHc(eYrV) : '' }}
                                     </td>
                                   }
-                                  @if (totYears().length >= 2) {
+                                  @if (showTotalWeeks() && totYears().length >= 2) {
                                     @let eTotDif = getEsquejeTotalDif(flor);
                                     @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#bbf7d0;"
@@ -365,7 +383,8 @@ const MO_GROUPS = [
                               }
                             }
                             @if (showTotal()) {
-                              @for (key of weekKeys(); track key) {
+                              @if (showTotalWeeks()) {
+                                @for (key of weekKeys(); track key) {
                                 @let wkCost = getWeekTotalVal(key, sc);
                                 @let wkDenom = getSiembraWeekTotal(key, uc.key);
                                 @let wkCpt = wkDenom > 0 ? wkCost / wkDenom : 0;
@@ -389,7 +408,8 @@ const MO_GROUPS = [
                                   </span>
                                 </td>
                               }
-                              @if (showYearTotals()) {
+                              }
+@if (showYearTotals()) {
                                 @for (yr of totYears(); track yr) {
                                   @let yrCost = getTotalVal(yr, sc);
                                   @let yrDenom = getSiembraYrTotal(yr, uc.key);
@@ -400,7 +420,7 @@ const MO_GROUPS = [
                                     {{ yrCpt > 0 ? fmtFull(yrCpt) : '' }}
                                   </td>
                                 }
-                                @if (totYears().length >= 2) {
+                                @if (showTotalWeeks() && totYears().length >= 2) {
                                   @let cYrCost = getTotalVal(totYears()[totYears().length - 1], sc);
                                   @let cYrDenom = getSiembraYrTotal(totYears()[totYears().length - 1], uc.key);
                                   @let cYrCpt = cYrDenom > 0 ? cYrCost / cYrDenom : 0;
@@ -447,7 +467,8 @@ const MO_GROUPS = [
 }
                               }
                               @if (showTotal()) {
-                                @for (key of weekKeys(); track key) {
+                                @if (showTotalWeeks()) {
+                                  @for (key of weekKeys(); track key) {
                                   @let sV = getSiembraWeekTotal(key, m.key);
                                   <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
                                       [style.color]="sV > 0 ? '#166534' : '#86efac'"
@@ -463,7 +484,8 @@ const MO_GROUPS = [
                                   {{ sDif !== 0 ? (sDif > 0 ? '+' : '') + fmtSiembra(absVal(sDif), m.decimals) : '' }}
                                 </td>
 }
-                                @if (showYearTotals()) {
+                                }
+@if (showYearTotals()) {
                                   @for (yr of totYears(); track yr) {
                                     @let sYrV = getSiembraYrTotal(yr, m.key);
                                     <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
@@ -472,7 +494,7 @@ const MO_GROUPS = [
                                       {{ sYrV > 0 ? fmtSiembra(sYrV, m.decimals) : '' }}
                                     </td>
                                   }
-                                  @if (totYears().length >= 2) {
+                                  @if (showTotalWeeks() && totYears().length >= 2) {
                                     @let sTotDif = getSiembraTotalDif(m.key);
                                     @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#bbf7d0;"
@@ -514,7 +536,8 @@ const MO_GROUPS = [
 }
                             }
                             @if (showTotal()) {
-                              @for (key of weekKeys(); track key) {
+                              @if (showTotalWeeks()) {
+                                @for (key of weekKeys(); track key) {
                                 @let htV = getHorasTransporteWeekTotal(key);
                                 <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
                                     [style.color]="htV > 0 ? '#166534' : '#86efac'"
@@ -530,7 +553,8 @@ const MO_GROUPS = [
                                 {{ htDif !== 0 ? (htDif > 0 ? '+' : '') + absVal(htDif).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : '' }}
                               </td>
 }
-                              @if (showYearTotals()) {
+                              }
+@if (showYearTotals()) {
                                 @for (yr of totYears(); track yr) {
                                   @let htYrV = getHorasTransporteYrTotal(yr);
                                   <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
@@ -539,7 +563,7 @@ const MO_GROUPS = [
                                     {{ htYrV > 0 ? htYrV.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2}) : '' }}
                                   </td>
                                 }
-                                @if (totYears().length >= 2) {
+                                @if (showTotalWeeks() && totYears().length >= 2) {
                                   @let htTotDif = getHorasTransporteTotalDif();
                                   @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#bbf7d0;"
@@ -583,7 +607,8 @@ const MO_GROUPS = [
 }
                               }
                               @if (showTotal()) {
-                                @for (key of weekKeys(); track key) {
+                                @if (showTotalWeeks()) {
+                                  @for (key of weekKeys(); track key) {
                                   @let tcV = getTractorCamasWeekTotal(key, act);
                                   @let thV = getTractorHorasWeekTotal(key, act);
                                   <td style="padding:3px 6px;border-bottom:1px solid #dcfce7;border-right:1px solid #dcfce7;text-align:right;background:#dcfce7;"
@@ -601,7 +626,8 @@ const MO_GROUPS = [
                                   {{ formatTractorDif(tCdif, tHdif) }}
                                 </td>
 }
-                                @if (showYearTotals()) {
+                                }
+@if (showYearTotals()) {
                                   @for (yr of totYears(); track yr) {
                                     @let tYrC = getTractorYrTotal(yr, act, 'camas');
                                     @let tYrH = getTractorYrTotal(yr, act, 'horas');
@@ -611,7 +637,7 @@ const MO_GROUPS = [
                                       {{ (tYrC > 0 || tYrH > 0) ? (tYrC > 0 ? tYrC.toLocaleString('es-MX', {maximumFractionDigits:1}) : '') + ' / ' + (tYrH > 0 ? tYrH.toLocaleString('es-MX', {maximumFractionDigits:0}) : '') : '' }}
                                     </td>
                                   }
-                                  @if (totYears().length >= 2) {
+                                  @if (showTotalWeeks() && totYears().length >= 2) {
                                     @let tTotCdif = getTractorTotalDif(act, 'camas');
                                     @let tTotHdif = getTractorTotalDif(act, 'horas');
                                     @if (showWeekDif()) {
@@ -643,17 +669,19 @@ const MO_GROUPS = [
 }
                         }
                         @if (showTotal()) {
-                          @for (key of weekKeys(); track key) {
+                          @if (showTotalWeeks()) {
+                            @for (key of weekKeys(); track key) {
                             <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;color:#ccc;"></td>
                           }
                           @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;color:#ccc;"></td>
 }
-                          @if (showYearTotals()) {
+                          }
+@if (showYearTotals()) {
                             @for (yr of totYears(); track yr) {
                               <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;color:#ccc;"></td>
                             }
-                            @if (totYears().length >= 2) {
+                            @if (showTotalWeeks() && totYears().length >= 2) {
                               <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;color:#ccc;"></td>
                             }
                           }
@@ -681,7 +709,8 @@ const MO_GROUPS = [
                             </td>
 }
                           }                      @if (showTotal()) {
-                        @for (key of weekKeys(); track key) {
+                        @if (showTotalWeeks()) {
+                          @for (key of weekKeys(); track key) {
                           <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                               [style.color]="getWeekTotalVal(key, sc) > 0 ? '#5a1414' : '#ccc'"
                               [style.fontWeight]="getWeekTotalVal(key, sc) > 0 ? '700' : '400'">
@@ -696,14 +725,15 @@ const MO_GROUPS = [
                           {{ wkDif !== 0 ? (wkDif > 0 ? '+' : '') + fmt(absVal(wkDif)) : '' }}
                         </td>
 }
-                        @for (yr of totYears(); track yr) {
+                        }
+@if (showYearTotals()) {@for (yr of totYears(); track yr) {
                           <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                               [style.color]="getTotalVal(yr, sc) > 0 ? '#5a1414' : '#ccc'"
                               [style.fontWeight]="getTotalVal(yr, sc) > 0 ? '700' : '400'">
                             {{ getTotalVal(yr, sc) > 0 ? fmt(getTotalVal(yr, sc)) : '' }}
                           </td>
                         }
-                        @if (totYears().length >= 2) {
+                        @if (showTotalWeeks() && totYears().length >= 2) {
                           @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                               [style.color]="getTotalDif(sc) !== 0 ? (getTotalDif(sc) > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
@@ -712,7 +742,8 @@ const MO_GROUPS = [
                           </td>
 }
                         }
-                      }
+                      
+                        }}
                         </tr>
                       }
                     }
@@ -742,7 +773,8 @@ const MO_GROUPS = [
 }
                     }
                     @if (showTotal()) {
-                      @for (key of weekKeys(); track key) {
+                      @if (showTotalWeeks()) {
+                        @for (key of weekKeys(); track key) {
                         <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                             [style.color]="getWeekTotalVal(key, sc) > 0 ? '#5a1414' : '#ccc'"
                             [style.fontWeight]="getWeekTotalVal(key, sc) > 0 ? '700' : '400'">
@@ -757,7 +789,8 @@ const MO_GROUPS = [
                         {{ wkDif !== 0 ? (wkDif > 0 ? '+' : '') + fmt(absVal(wkDif)) : '' }}
                       </td>
 }
-                      @if (showYearTotals()) {
+                      }
+@if (showYearTotals()) {
                         @for (yr of totYears(); track yr) {
                           <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                               [style.color]="getTotalVal(yr, sc) > 0 ? '#5a1414' : '#ccc'"
@@ -765,7 +798,7 @@ const MO_GROUPS = [
                             {{ getTotalVal(yr, sc) > 0 ? fmt(getTotalVal(yr, sc)) : '' }}
                           </td>
                         }
-                        @if (totYears().length >= 2) {
+                        @if (showTotalWeeks() && totYears().length >= 2) {
                           @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                               [style.color]="getTotalDif(sc) !== 0 ? (getTotalDif(sc) > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
@@ -802,7 +835,8 @@ const MO_GROUPS = [
 }
                 }
                 @if (showTotal()) {
-                  @for (key of weekKeys(); track key) {
+                  @if (showTotalWeeks()) {
+                    @for (key of weekKeys(); track key) {
                     <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
                         [style.color]="getGrandWeekTotal(key) > 0 ? '#5a1414' : '#ccc'"
                         [style.fontWeight]="getGrandWeekTotal(key) > 0 ? '700' : '400'">
@@ -817,7 +851,8 @@ const MO_GROUPS = [
                     {{ grandWkDif !== 0 ? (grandWkDif > 0 ? '+' : '') + fmt(absVal(grandWkDif)) : '' }}
                   </td>
                   }
-                  @if (showYearTotals()) {
+                  }
+@if (showYearTotals()) {
                     @for (yr of totYears(); track yr) {
                       <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
                           [style.color]="getGrandTotalVal(yr) > 0 ? '#5a1414' : '#ccc'"
@@ -825,7 +860,7 @@ const MO_GROUPS = [
                         {{ getGrandTotalVal(yr) > 0 ? fmt(getGrandTotalVal(yr)) : '' }}
                       </td>
                     }
-                    @if (totYears().length >= 2) {
+                    @if (showTotalWeeks() && totYears().length >= 2) {
                       @if (showWeekDif()) {
 <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
                           [style.color]="getGrandTotalDif() !== 0 ? (getGrandTotalDif() > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
@@ -837,6 +872,75 @@ const MO_GROUPS = [
                   }
                 }
               </tr>
+              @if (isManoObra() && hasTotalPeople()) {
+                <tr class="pt-row-total">
+                  <td class="pt-pinned"
+                      style="padding:3px 8px;border-bottom:1px solid #e5e5e5;border-right:1px solid #ddd;font-weight:800;color:#5a1414;background:var(--pt-tot-bg);font-size:11px;">
+                    TOTAL PERSONAS
+                    @if (state().activeRanches.includes('Todos') && getTotalOperativoHeadcount() > 0) {
+                      <span style="display:inline-block;margin-left:8px;padding:2px 7px;border-radius:10px;background:#e7f3f0;color:#285e59;font-size:9px;font-weight:700;white-space:nowrap;">
+                        OPERATIVO: {{ fmtHc(getTotalOperativoHeadcount()) }} {{ getTotalOperativoHeadcount() === 1 ? 'PERSONA' : 'PERSONAS' }}
+                      </span>
+                    }
+                  </td>
+                  @for (rn of activeRanchesInData(); track rn) {
+                    @for (key of weekKeys(); track key) {
+                      @let people = getTotalPeopleRanch(key, rn);
+                      <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                          [style.color]="people > 0 ? '#5a1414' : '#ccc'"
+                          [style.fontWeight]="people > 0 ? '700' : '400'">
+                        {{ people > 0 ? fmtHc(people) : '' }}
+                      </td>
+                    }
+                    @if (showWeekDif()) {
+                      @let peopleDif = getTotalPeopleRanchDif(rn);
+                      <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                          [style.color]="peopleDif !== 0 ? (peopleDif > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
+                          [style.fontWeight]="peopleDif !== 0 ? '700' : '400'">
+                        {{ peopleDif !== 0 ? (peopleDif > 0 ? '+' : '') + fmtHcDiff(absVal(peopleDif)) : '' }}
+                      </td>
+                    }
+                  }
+                  @if (showTotal()) {
+                    @if (showTotalWeeks()) {
+                      @for (key of weekKeys(); track key) {
+                        @let people = getTotalPeopleWeek(key);
+                        <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                            [style.color]="people > 0 ? '#5a1414' : '#ccc'"
+                            [style.fontWeight]="people > 0 ? '700' : '400'">
+                          {{ people > 0 ? fmtHc(people) : '' }}
+                        </td>
+                      }
+                      @let peopleDif = getTotalPeopleWeekDif();
+                      @if (showWeekDif()) {
+                        <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                            [style.color]="peopleDif !== 0 ? (peopleDif > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
+                            [style.fontWeight]="peopleDif !== 0 ? '700' : '400'">
+                          {{ peopleDif !== 0 ? (peopleDif > 0 ? '+' : '') + fmtHcDiff(absVal(peopleDif)) : '' }}
+                        </td>
+                      }
+                    }
+                    @if (showYearTotals()) {
+                      @for (yr of totYears(); track yr) {
+                        @let people = getTotalPeopleYear(yr);
+                        <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                            [style.color]="people > 0 ? '#5a1414' : '#ccc'"
+                            [style.fontWeight]="people > 0 ? '700' : '400'">
+                          {{ people > 0 ? fmtHc(people) : '' }}
+                        </td>
+                      }
+                      @if (showTotalWeeks() && totYears().length >= 2 && showWeekDif()) {
+                        @let peopleDif = getTotalPeopleYearDif();
+                        <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                            [style.color]="peopleDif !== 0 ? (peopleDif > 0 ? '#16a34a' : '#dc2626') : '#ccc'"
+                            [style.fontWeight]="peopleDif !== 0 ? '700' : '400'">
+                          {{ peopleDif !== 0 ? (peopleDif > 0 ? '+' : '') + fmtHcDiff(absVal(peopleDif)) : '' }}
+                        </td>
+                      }
+                    }
+                  }
+                </tr>
+              }
             </tbody>
           </table>
         }
@@ -847,6 +951,10 @@ const MO_GROUPS = [
 export class ServiciosViewComponent {
   readonly YEAR_COLORS = YEAR_COLORS;
   readonly moGroups = MO_GROUPS;
+  readonly headcountTypes = [
+    { key: 'planta' as const, label: 'NÚMERO DE PERSONAS PLANTA' },
+    { key: 'contratistas' as const, label: 'NÚMERO DE PERSONAS CONTRATISTAS' },
+  ];
 
   constructor(protected stateService: StateService) {}
 
@@ -855,7 +963,10 @@ export class ServiciosViewComponent {
 
   protected isManoObra = computed(() => this.state().cat === 'COSTO MANO DE OBRA');
   protected activeRanches = this.stateService.activeRanchesList;
-  protected showTotal = computed(() => this.state().activeRanches.includes('Todos'));
+  protected showTotalWeeks = computed(() =>
+    this.state().activeRanches.includes('Todos') || this.state().activeRanches.length !== 1
+  );
+  protected showTotal = computed(() => this.showTotalWeeks() || this.showYearTotals());
   protected showYearTotals = computed(() => this.weekKeys().length >= 2);
 
   // ── Expandable groups state ──
@@ -870,48 +981,85 @@ export class ServiciosViewComponent {
   }
 
   // ── HC (Headcount) helpers ──
-  protected getHcVal(weekKey: string, subcat: string): number {
+  protected getHcVal(weekKey: string, subcat: string, type: HeadcountType): number {
+    const d = this.data();
+    if (!d) return 0;
+    if (!this.state().activeRanches.includes('Todos')) {
+      return this.activeRanchesInData().reduce(
+        (total, ranch) => total + this.getHcRanchVal(weekKey, ranch, subcat, type),
+        0,
+      );
+    }
+    const [yr, wk] = weekKey.split('-').map(Number);
+    let total = 0;
+    for (const r of (d.mano_obra_data || [])) {
+      if (r.subcat === subcat && r.year === yr && r.week === wk) {
+        total += (type === 'planta' ? r.hc_planta_total : r.hc_contratistas_total) || 0;
+      }
+    }
+    return total;
+  }
+
+  protected getHcRanchVal(weekKey: string, ranch: string, subcat: string, type: HeadcountType): number {
     const d = this.data();
     if (!d) return 0;
     const [yr, wk] = weekKey.split('-').map(Number);
     let total = 0;
     for (const r of (d.mano_obra_data || [])) {
       if (r.subcat === subcat && r.year === yr && r.week === wk) {
-        total += r.hc_total || 0;
+        const ranchValues = type === 'planta' ? r.hc_planta_ranches : r.hc_contratistas_ranches;
+        total += (ranchValues || {})[ranch] || 0;
       }
     }
     return total;
   }
 
-  protected getHcRanchVal(weekKey: string, ranch: string, subcat: string): number {
+  protected getOperativoHeadcountForSubcat(subcat: string): number {
+    return this.weekKeys().reduce((total, weekKey) => total + this.getOperativoHeadcountWeek(weekKey, subcat), 0);
+  }
+
+  protected getTotalOperativoHeadcount(): number {
+    return this.weekKeys().reduce((total, weekKey) => total + this.getOperativoHeadcountWeek(weekKey), 0);
+  }
+
+  protected getOperativoHeadcountWeek(weekKey: string, subcat?: string): number {
     const d = this.data();
     if (!d) return 0;
     const [yr, wk] = weekKey.split('-').map(Number);
-    let total = 0;
-    for (const r of (d.mano_obra_data || [])) {
-      if (r.subcat === subcat && r.year === yr && r.week === wk) {
-        total += (r.hc_ranches || {})[ranch] || 0;
-      }
-    }
-    return total;
+    return (d.mano_obra_data || []).reduce((total, record) => {
+      if (record.year !== yr || record.week !== wk || (subcat && record.subcat !== subcat)) return total;
+      return total + (record.hc_operativo_total
+        ?? ((record.hc_operativo_planta || 0) + (record.hc_operativo_contratistas || 0)));
+    }, 0);
   }
 
-  protected getHcDif(ranch: string, subcat: string): number {
+  protected visibleHeadcountTypes(subcat: string) {
+    const weekKeys = this.weekKeys();
+    const ranches = this.activeRanchesInData();
+    const showTotal = this.showTotal();
+    return this.headcountTypes.filter(type => weekKeys.some(weekKey =>
+      showTotal
+        ? this.getHcVal(weekKey, subcat, type.key) > 0
+        : ranches.some(ranch => this.getHcRanchVal(weekKey, ranch, subcat, type.key) > 0)
+    ));
+  }
+
+  protected getHcDif(ranch: string, subcat: string, type: HeadcountType): number {
     const keys = this.weekKeys();
     if (keys.length < 2) return 0;
-    const first = this.getHcRanchVal(keys[0], ranch, subcat);
-    const last = this.getHcRanchVal(keys[keys.length - 1], ranch, subcat);
+    const first = this.getHcRanchVal(keys[0], ranch, subcat, type);
+    const last = this.getHcRanchVal(keys[keys.length - 1], ranch, subcat, type);
     return last - first;
   }
 
-  protected getHcTotalDif(subcat: string): number {
+  protected getHcTotalDif(subcat: string, type: HeadcountType): number {
     const yrs = this.totYears();
     if (yrs.length < 2) return 0;
     const map = this.weekMap();
     let firstTotal = 0, lastTotal = 0;
     for (const k of this.weekKeys()) {
-      if (map[k]._year === yrs[0]) firstTotal += this.getHcVal(k, subcat);
-      if (map[k]._year === yrs[yrs.length - 1]) lastTotal += this.getHcVal(k, subcat);
+      if (map[k]._year === yrs[0]) firstTotal += this.getHcVal(k, subcat, type);
+      if (map[k]._year === yrs[yrs.length - 1]) lastTotal += this.getHcVal(k, subcat, type);
     }
     return lastTotal - firstTotal;
   }
@@ -1009,7 +1157,13 @@ export class ServiciosViewComponent {
     return Object.keys(map)
       .filter(key => {
         const d = map[key];
-        return Object.keys(d).some(k => k[0] !== '_' && !k.includes('__r__') && (d[k] as number) > 0);
+        const [year, week] = key.split('-').map(Number);
+        const hasCost = Object.keys(d).some(k => k[0] !== '_' && !k.includes('__r__') && (d[k] as number) > 0);
+        const hasHeadcount = this.isManoObra() && (this.data()?.mano_obra_data || []).some(record =>
+          record.year === year && record.week === week
+          && ((record.hc_planta_total || 0) > 0 || (record.hc_contratistas_total || 0) > 0)
+        );
+        return hasCost || hasHeadcount;
       })
       .sort((a, b) => {
         const [ay, aw] = a.split('-').map(Number);
@@ -1027,6 +1181,19 @@ export class ServiciosViewComponent {
       for (const prop of Object.keys(map[k] || {})) {
         if (prop[0] !== '_' && !prop.includes('__r__') && (map[k][prop] as number) > 0) {
           set.add(prop);
+        }
+      }
+    }
+    if (this.isManoObra()) {
+      const ranches = this.activeRanchesInData();
+      for (const key of keys) {
+        for (const group of this.moGroups) {
+          for (const subcat of group.subcats) {
+            const hasHeadcount = this.headcountTypes.some(type => this.showTotal()
+              ? this.getHcVal(key, subcat, type.key) > 0
+              : ranches.some(ranch => this.getHcRanchVal(key, ranch, subcat, type.key) > 0));
+            if (hasHeadcount) set.add(subcat);
+          }
         }
       }
     }
@@ -1060,11 +1227,15 @@ export class ServiciosViewComponent {
       }
 
       // Step 1: filter to ranches with data in weekMap
-      const result = allowedRanches.filter(rn =>
-        keys.some(key =>
-          Object.keys(map[key] || {}).some(k => k.endsWith('__r__' + rn) && (map[key][k] as number) > 0)
-        )
-      );
+      const result = allowedRanches.filter(rn => keys.some(key => {
+        const hasCost = Object.keys(map[key] || {}).some(k =>
+          k.endsWith('__r__' + rn) && (map[key][k] as number) > 0
+        );
+        const hasHeadcount = this.moGroups.some(group => group.subcats.some(subcat =>
+          this.headcountTypes.some(type => this.getHcRanchVal(key, rn, subcat, type.key) > 0)
+        ));
+        return hasCost || hasHeadcount;
+      }));
 
       // Step 2: also include any ranches from data that are in the allowed list
       for (const k of keys) {
@@ -1104,7 +1275,11 @@ export class ServiciosViewComponent {
   protected nColsPerRanch = computed(() => Math.max(this.weekKeys().length, 0) + (this.showWeekDif() ? 1 : 0));
   protected nTotalCols = computed(() => {
     const yrs = this.totYears();
-    return this.nColsPerRanch() + (this.showYearTotals() ? yrs.length + (yrs.length >= 2 ? 1 : 0) : 0);
+    const weeklyCols = this.showTotalWeeks() ? this.nColsPerRanch() : 0;
+    const yearCols = this.showYearTotals()
+      ? yrs.length + (this.showTotalWeeks() && yrs.length >= 2 ? 1 : 0)
+      : 0;
+    return weeklyCols + yearCols;
   });
 
   // ── Label helper ──
@@ -1125,7 +1300,7 @@ export class ServiciosViewComponent {
     let total = 0;
     for (const k of this.weekKeys()) {
       if (map[k]._year === yr) {
-        total += (map[k][subcat] as number) || 0;
+        total += this.getWeekTotalVal(k, subcat);
       }
     }
     return total;
@@ -1151,10 +1326,13 @@ export class ServiciosViewComponent {
     const ranches = this.activeRanchesInData();
     for (const k of keys) {
       for (const sc of group.subcats) {
-        if ((map[k][sc] as number) > 0) return true;
+        if (this.showTotal() && this.getWeekTotalVal(k, sc) > 0) return true;
         for (const rn of ranches) {
           if ((map[k][sc + '__r__' + rn] as number) > 0) return true;
         }
+        if (this.headcountTypes.some(type => this.showTotal()
+          ? this.getHcVal(k, sc, type.key) > 0
+          : ranches.some(rn => this.getHcRanchVal(k, rn, sc, type.key) > 0))) return true;
       }
     }
     return false;
@@ -1174,10 +1352,16 @@ export class ServiciosViewComponent {
     return this.orderedSubcats();
   });
 
-  // ── Week total helpers (across all ranches) ──
+  // ── Week total helpers (across all selected ranches) ──
   protected getWeekTotalVal(weekKey: string, subcat: string): number {
     const wk = this.weekMap()[weekKey];
     if (!wk) return 0;
+    if (!this.state().activeRanches.includes('Todos')) {
+      return this.activeRanchesInData().reduce(
+        (total, ranch) => total + ((wk[subcat + '__r__' + ranch] as number) || 0),
+        0,
+      );
+    }
     return (wk[subcat] as number) || 0;
   }
 
@@ -1235,13 +1419,74 @@ export class ServiciosViewComponent {
   }
 
   // ── HC yearly total ──
-  protected getHcYrVal(yr: number, subcat: string): number {
+  protected getHcYrVal(yr: number, subcat: string, type: HeadcountType): number {
     let total = 0;
     for (const k of this.weekKeys()) {
       const [y] = k.split('-').map(Number);
-      if (y === yr) total += this.getHcVal(k, subcat);
+      if (y === yr) total += this.getHcVal(k, subcat, type);
     }
     return total;
+  }
+
+  protected hasTotalPeople(): boolean {
+    return this.weekKeys().some(key =>
+      this.activeRanchesInData().some(ranch => this.getTotalPeopleRanch(key, ranch) > 0)
+      || (this.state().activeRanches.includes('Todos') && this.getOperativoHeadcountWeek(key) > 0)
+    );
+  }
+
+  protected getTotalPeopleRanch(weekKey: string, ranch: string): number {
+    let total = 0;
+    for (const group of this.moGroups) {
+      for (const subcat of group.subcats) {
+        for (const type of this.headcountTypes) {
+          total += this.getHcRanchVal(weekKey, ranch, subcat, type.key);
+        }
+      }
+    }
+    return total;
+  }
+
+  protected getTotalPeopleWeek(weekKey: string): number {
+    const ranchTotal = this.activeRanchesInData().reduce(
+      (total, ranch) => total + this.getTotalPeopleRanch(weekKey, ranch),
+      0,
+    );
+    return ranchTotal + (this.state().activeRanches.includes('Todos') ? this.getOperativoHeadcountWeek(weekKey) : 0);
+  }
+
+  protected getTotalPeopleRanchDif(ranch: string): number {
+    const keys = this.weekKeys();
+    if (keys.length < 2) return 0;
+    return this.getTotalPeopleRanch(keys[keys.length - 1], ranch) - this.getTotalPeopleRanch(keys[0], ranch);
+  }
+
+  protected getTotalPeopleWeekDif(): number {
+    const keys = this.weekKeys();
+    if (keys.length < 2) return 0;
+    return this.getTotalPeopleWeek(keys[keys.length - 1]) - this.getTotalPeopleWeek(keys[0]);
+  }
+
+  protected getTotalPeopleYear(yr: number): number {
+    let total = 0;
+    for (const key of this.weekKeys()) {
+      const [year] = key.split('-').map(Number);
+      if (year === yr) total += this.getTotalPeopleWeek(key);
+    }
+    return total;
+  }
+
+  protected getTotalPeopleYearDif(): number {
+    const years = this.totYears();
+    if (years.length < 2) return 0;
+    let firstYear = 0;
+    let lastYear = 0;
+    for (const key of this.weekKeys()) {
+      const [year] = key.split('-').map(Number);
+      if (year === years[0]) firstYear += this.getTotalPeopleWeek(key);
+      if (year === years[years.length - 1]) lastYear += this.getTotalPeopleWeek(key);
+    }
+    return lastYear - firstYear;
   }
 
   // ── Siembra helpers ──

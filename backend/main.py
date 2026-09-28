@@ -4,16 +4,20 @@ Serves data from data_extractor.py as JSON API endpoints
 and serves the Angular frontend static files.
 """
 import json
+import hmac
 import os
+import secrets
 import sys
 import math
+import time
 from typing import Optional
 from pathlib import Path
 
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 class SafeJSONResponse(JSONResponse):
     def render(self, content: dict) -> bytes:
@@ -31,8 +35,58 @@ import backend.secrets_compat  # noqa: F401
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data_extractor import get_datos
+from backend.headcount_upload import add_dashboard_headcounts, parse_personnel_workbook, save_personnel_week
 
 app = FastAPI(title="CFBC WECKLY API", version="1.0.0")
+_admin_sessions: dict[str, float] = {}
+_admin_session_ttl = 30 * 60
+
+
+class AdminAuthRequest(BaseModel):
+    password: str
+
+
+def _configured_admin_password() -> Optional[str]:
+    password = os.environ.get("CFBC_ADMIN_PASSWORD")
+    if password:
+        return password
+    try:
+        import streamlit as st
+        return st.secrets.get("admin", {}).get("password")
+    except (ImportError, AttributeError, KeyError, TypeError):
+        return None
+
+
+async def _require_admin_session(
+    x_admin_token: Optional[str] = Header(default=None, alias="X-Admin-Token"),
+) -> None:
+    expires_at = _admin_sessions.get(x_admin_token or "")
+    if expires_at is None or expires_at <= time.monotonic():
+        _admin_sessions.pop(x_admin_token or "", None)
+        raise HTTPException(status_code=401, detail="La sesión administrativa venció. Ingresa la contraseña nuevamente.")
+
+
+@app.post("/api/admin/auth")
+async def authenticate_admin(request: AdminAuthRequest):
+    expected_password = _configured_admin_password()
+    if not expected_password:
+        raise HTTPException(status_code=503, detail="La contraseña administrativa no está configurada en el servidor.")
+    if not hmac.compare_digest(request.password, expected_password):
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta. Intenta nuevamente.")
+
+    now = time.monotonic()
+    for token, expires_at in list(_admin_sessions.items()):
+        if expires_at <= now:
+            _admin_sessions.pop(token, None)
+    token = secrets.token_urlsafe(32)
+    _admin_sessions[token] = now + _admin_session_ttl
+    return {"token": token, "expires_in": _admin_session_ttl}
+
+
+@app.post("/api/admin/logout", dependencies=[Depends(_require_admin_session)])
+async def logout_admin(x_admin_token: str = Header(alias="X-Admin-Token")):
+    _admin_sessions.pop(x_admin_token, None)
+    return {"status": "Sesión administrativa cerrada."}
 
 app.add_middleware(
     CORSMiddleware,
@@ -100,7 +154,12 @@ def _load_data() -> dict:
         raw = get_datos()
         if "error" in raw:
             raise RuntimeError(raw["error"])
-        _data_cache = _sanitize(raw)
+        loaded = _sanitize(raw)
+        try:
+            add_dashboard_headcounts(loaded)
+        except Exception as exc:
+            print(f"[WARN] Conteos semanales no disponibles ({type(exc).__name__}).")
+        _data_cache = loaded
     return _data_cache
 
 
@@ -121,12 +180,40 @@ async def get_all_data():
     return SafeJSONResponse(content=_load_data())
 
 
-@app.post("/api/reload")
+@app.post("/api/reload", dependencies=[Depends(_require_admin_session)])
 async def reload_data():
     """Clear the data cache so the next request fetches fresh data."""
     global _data_cache
     _data_cache = None
     return {"status": "Cache cleared."}
+
+
+@app.post("/api/admin/headcount/upload", dependencies=[Depends(_require_admin_session)])
+async def upload_headcount(week_code: str = Form(...), file: UploadFile = File(...)):
+    global _data_cache
+    filename = file.filename or ""
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="Selecciona un archivo Excel .xlsx.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="El archivo seleccionado está vacío.")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 10 MB.")
+
+    try:
+        rows = parse_personnel_workbook(content)
+        result = save_personnel_week(week_code, rows)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        print(f"[ERR] Falló la carga del conteo semanal ({type(exc).__name__}).")
+        raise HTTPException(status_code=502, detail="No se pudo guardar el conteo en SharePoint. Intenta nuevamente.") from exc
+
+    _data_cache = None
+    return result
 
 
 @app.get("/api/config")

@@ -62,9 +62,16 @@ export interface ManoObraRecord {
   mxn_total: number;
   usd_total: number;
   hc_total?: number;
+  hc_planta_total?: number;
+  hc_contratistas_total?: number;
   mxn_ranches: Record<string, number>;
   usd_ranches: Record<string, number>;
   hc_ranches?: Record<string, number>;
+  hc_planta_ranches?: Record<string, number>;
+  hc_contratistas_ranches?: Record<string, number>;
+  hc_operativo_total?: number;
+  hc_operativo_planta?: number;
+  hc_operativo_contratistas?: number;
 }
 
 export interface MetrosRecord {

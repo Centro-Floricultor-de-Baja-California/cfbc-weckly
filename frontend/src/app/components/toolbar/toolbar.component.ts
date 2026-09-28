@@ -1,6 +1,7 @@
-import { Component, computed, signal, output } from '@angular/core';
+import { Component, computed, signal, output, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StateService } from '../../services/state.service';
+import { ApiService } from '../../services/api.service';
 import { YEAR_COLORS, CurrencyType } from '../../models/types';
 
 @Component({
@@ -113,27 +114,27 @@ import { YEAR_COLORS, CurrencyType } from '../../models/types';
       </div>
     </div>
 
-    <!-- Password Modal for Reload -->
+    <!-- Administrative access -->
     @if (showPasswordModal()) {
       <div class="modal-backdrop fade show" style="z-index: 9998; background: rgba(0,0,0,0.5); position: fixed; inset: 0; backdrop-filter: blur(4px);"></div>
       <div class="modal fade show" style="display: block; z-index: 9999; position: fixed; top: 0; left: 0; width: 100%; height: 100%;" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content shadow-lg border-0 rounded-4">
             <div class="modal-header border-bottom-0 pb-0">
-              <h5 class="modal-title fw-bold text-dark" style="font-size: 1.2rem;"><i class="fa-solid fa-shield-halved text-primary me-2"></i> Autenticación</h5>
-              <button type="button" class="btn-close" (click)="showPasswordModal.set(false)"></button>
+              <h5 class="modal-title fw-bold text-dark" style="font-size: 1.2rem;">Acceso de administración</h5>
+              <button type="button" class="btn-close" aria-label="Cerrar" (click)="closePasswordModal()" [disabled]="isAuthorizing()"></button>
             </div>
             <div class="modal-body p-4">
-              <p class="text-secondary mb-3" style="font-size: 0.95rem;">La recarga completa de datos desde la base de datos requiere autorización. Ingresa la contraseña maestra.</p>
-              <input type="password" class="form-control form-control-lg bg-light border-0 shadow-sm rounded-3 px-4" placeholder="Contraseña..." [value]="passwordInput()" (input)="onPasswordInput($event)" (keyup.enter)="confirmReload()">
+              <p class="text-secondary mb-3" style="font-size: 0.95rem;">Ingresa la contraseña para abrir las acciones de administración.</p>
+              <input type="password" class="form-control form-control-lg bg-light border-0 shadow-sm rounded-3 px-4" placeholder="Contraseña..." [value]="passwordInput()" (input)="onPasswordInput($event)" (keyup.enter)="confirmReload()" [disabled]="isAuthorizing()" autocomplete="current-password">
               @if (passwordError()) {
-                <div class="text-danger mt-3 small fw-semibold bg-danger bg-opacity-10 p-2 rounded-3"><i class="fa-solid fa-circle-exclamation me-1"></i> Contraseña incorrecta. Intenta nuevamente.</div>
+                <div class="text-danger mt-3 small fw-semibold bg-danger bg-opacity-10 p-2 rounded-3"><i class="fa-solid fa-circle-exclamation me-1"></i> {{ passwordError() }}</div>
               }
             </div>
             <div class="modal-footer border-top-0 pt-0">
-              <button type="button" class="btn btn-light rounded-pill px-4 fw-medium" (click)="showPasswordModal.set(false)">Cancelar</button>
-              <button type="button" class="btn text-white rounded-pill px-4 fw-medium shadow-sm" style="background: linear-gradient(135deg, #1f2937, #111827);" (click)="confirmReload()">
-                <i class="fa-solid fa-cloud-arrow-down me-1"></i> Autorizar Recarga
+              <button type="button" class="btn btn-light rounded-pill px-4 fw-medium" (click)="closePasswordModal()" [disabled]="isAuthorizing()">Cancelar</button>
+              <button type="button" class="btn text-white rounded-pill px-4 fw-medium shadow-sm" style="background: linear-gradient(135deg, #1f2937, #111827);" (click)="confirmReload()" [disabled]="isAuthorizing() || !passwordInput().trim()">
+                @if (isAuthorizing()) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Validando... } @else { Continuar }
               </button>
             </div>
           </div>
@@ -145,7 +146,7 @@ import { YEAR_COLORS, CurrencyType } from '../../models/types';
 export class ToolbarComponent {
   readonly YEAR_COLORS = YEAR_COLORS;
   readonly verProductos = output<void>();
-  readonly reload = output<void>();
+  readonly adminAuthorized = output<string>();
 
   protected ranchOpen = signal(false);
   protected ranchPos = signal({ top: 0, left: 0 });
@@ -153,29 +154,45 @@ export class ToolbarComponent {
   // Password Modal Signals
   protected showPasswordModal = signal(false);
   protected passwordInput = signal('');
-  protected passwordError = signal(false);
+  protected passwordError = signal('');
+  protected isAuthorizing = signal(false);
 
   openReloadModal() {
     this.passwordInput.set('');
-    this.passwordError.set(false);
+    this.passwordError.set('');
     this.showPasswordModal.set(true);
+  }
+
+  closePasswordModal() {
+    this.showPasswordModal.set(false);
+    this.passwordInput.set('');
+    this.passwordError.set('');
   }
 
   onPasswordInput(event: Event) {
     const val = (event.target as HTMLInputElement).value;
     this.passwordInput.set(val);
+    this.passwordError.set('');
   }
 
   confirmReload() {
-    if (this.passwordInput() === 'cfbc2026') {
-      this.showPasswordModal.set(false);
-      this.reload.emit();
-    } else {
-      this.passwordError.set(true);
-    }
+    if (this.isAuthorizing() || !this.passwordInput().trim()) return;
+    this.isAuthorizing.set(true);
+    this.passwordError.set('');
+    this.apiService.authenticateAdmin(this.passwordInput()).subscribe({
+      next: ({ token }) => {
+        this.isAuthorizing.set(false);
+        this.closePasswordModal();
+        this.adminAuthorized.emit(token);
+      },
+      error: (err: any) => {
+        this.isAuthorizing.set(false);
+        this.passwordError.set(err?.error?.detail || 'No se pudo validar la contraseña. Intenta nuevamente.');
+      },
+    });
   }
 
-  constructor(protected stateService: StateService) {}
+  constructor(protected stateService: StateService, private apiService: ApiService) {}
 
   protected state = this.stateService.state;
   protected data = this.stateService.data;
@@ -236,6 +253,14 @@ export class ToolbarComponent {
     const btn = event.currentTarget as HTMLElement;
     const rect = btn.getBoundingClientRect();
     this.ranchPos.set({ top: rect.bottom + 2, left: rect.left });
+  }
+
+  @HostListener('document:click', ['$event'])
+  protected closeRanchDropdownOnOutsideClick(event: MouseEvent) {
+    const target = event.target;
+    if (target instanceof Element && !target.closest('#ranchDropdownBtn, #ranchDropdownPanel')) {
+      this.ranchOpen.set(false);
+    }
   }
 
   protected toggleRanch(val: string, event: Event) {

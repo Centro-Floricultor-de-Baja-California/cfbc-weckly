@@ -47,16 +47,31 @@ jobs:
     needs: build-and-push
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
     concurrency:
       group: weeckly-deploy
       cancel-in-progress: false
     steps:
       - name: Deploy to droplet
         uses: appleboy/ssh-action@v1
+        env:
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
+          envs: GHCR_USERNAME,GHCR_TOKEN
           script: |
+            set -eu
+            DOCKER_CONFIG="$(mktemp -d)"
+            export DOCKER_CONFIG
+            cleanup() {
+              docker logout ghcr.io >/dev/null 2>&1 || true
+              rm -rf "$DOCKER_CONFIG"
+            }
+            trap cleanup EXIT
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
             /opt/cfbc-app/deploy-weeckly.sh "$TAG"

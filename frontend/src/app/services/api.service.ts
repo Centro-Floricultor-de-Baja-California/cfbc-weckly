@@ -60,6 +60,30 @@ export class ApiService {
     });
   }
 
+  /** Parse weekly Excel amounts for a temporary comparison; this endpoint never saves them. */
+  compareHeadcountAmounts(file: File, weekCode: string, token: string): Observable<{
+    week_code: string;
+    year: number;
+    week: number;
+    rows: Array<{ ranch: string; subcat: string; amount: number }>;
+    unmapped_sections: string[];
+    unmapped_concepts: string[];
+  }> {
+    const body = new FormData();
+    body.append('week_code', weekCode);
+    body.append('file', file, file.name);
+    return this.http.post<{
+      week_code: string;
+      year: number;
+      week: number;
+      rows: Array<{ ranch: string; subcat: string; amount: number }>;
+      unmapped_sections: string[];
+      unmapped_concepts: string[];
+    }>(`${this.baseUrl}/admin/headcount/compare`, body, {
+      headers: new HttpHeaders({ 'X-Admin-Token': token }),
+    });
+  }
+
   /** Config only */
   getConfig(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/config`);

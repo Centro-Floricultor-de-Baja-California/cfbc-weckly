@@ -1,6 +1,7 @@
 import { Component, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { StateService } from '../../services/state.service';
+import { AmountComparisonService } from '../../services/amount-comparison.service';
 import { YEAR_COLORS } from '../../models/types';
 
 interface WeekData {
@@ -137,21 +138,41 @@ type HeadcountType = 'planta' | 'contratistas';
                       <tr class="pt-row" style="cursor:pointer;" (click)="toggleGroup(group.label)"
                           [style.background]="isGroupExpanded(group.label) ? '#e8e8e8' : '#ffffff'"
                           title="Clic para expandir/contraer métricas">
-                        <td style="padding:3px 8px;position:sticky;left:0;z-index:1;background:inherit !important;border-bottom:1px solid #e5e5e5;border-right:1px solid #ddd;font-weight:700;color:var(--pt-grp-fg);font-size:11px;">
+                        <td style="padding:3px 8px;position:sticky;left:0;z-index:1;background:inherit !important;border-bottom:1px solid #e5e5e5;border-right:1px solid #ddd;font-weight:700;color:var(--pt-grp-fg);font-size:11px;white-space:normal;">
                           <span>{{ isGroupExpanded(group.label) ? '− ' : '+ ' }}</span>{{ group.label }}
                           @let operativoPeople = getOperativoHeadcountForSubcat(sc);
-                          @if (operativoPeople > 0) {
-                            <span style="display:inline-block;margin-left:8px;padding:2px 7px;border-radius:10px;background:#e7f3f0;color:#285e59;font-size:9px;font-weight:700;white-space:nowrap;">
-                              OPERATIVO: {{ fmtHc(operativoPeople) }} {{ operativoPeople === 1 ? 'PERSONA' : 'PERSONAS' }}
+                          @let operativoExcelAmount = showExcelComparison() && state().activeRanches.includes('Todos') ? getExcelRanchAmount('Operativo', sc) : 0;
+                          @if (operativoPeople > 0 || operativoExcelAmount > 0) {
+                            <span style="display:inline-flex;vertical-align:middle;align-items:center;flex-wrap:wrap;gap:3px;margin-left:6px;white-space:normal;">
+                              @if (operativoPeople > 0) {
+                                <span style="display:inline-block;padding:1px 4px;border-radius:10px;background:#e7f3f0;color:#285e59;font-size:8px;font-weight:700;white-space:nowrap;">
+                                  OPERATIVO: {{ fmtHc(operativoPeople) }} {{ operativoPeople === 1 ? 'PERSONA' : 'PERSONAS' }}
+                                </span>
+                              }
+                              @if (operativoExcelAmount > 0) {
+                                <span [title]="'Monto de Operativo en Excel: ' + fmt(operativoExcelAmount)" style="display:inline-block;padding:1px 4px;border-radius:10px;background:#fef3c7;color:#713f12;font-size:8px;font-weight:700;white-space:nowrap;">
+                                  {{ fmt(operativoExcelAmount) }}
+                                </span>
+                              }
                             </span>
                           }
                         </td>
                         @for (rn of activeRanchesInData(); track rn) {
                           @for (key of weekKeys(); track key) {
-                            <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
+                            <td [style.padding]="showExcelComparison() ? '3px 1px' : '3px 6px'" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                                 [style.color]="getRanchVal(key, rn, sc) > 0 ? '#5a1414' : '#ccc'"
                                 [style.fontWeight]="getRanchVal(key, rn, sc) > 0 ? '600' : '400'">
-                              {{ getRanchVal(key, rn, sc) > 0 ? fmt(getRanchVal(key, rn, sc)) : '' }}
+                              @if (showExcelComparison()) {
+                                @let excelAmount = getExcelRanchAmount(rn, sc);
+                                <span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:1px;white-space:nowrap;line-height:1;">
+                                  @if (excelAmount > 0) {
+                                    <span [title]="'Excel: ' + fmt(excelAmount)" style="padding:1px 1px;border-radius:3px;background:#fef3c7;color:#713f12;font-weight:700;">{{ fmtExcelAmount(excelAmount) }}</span>
+                                  }
+                                  <span [title]="'Sistema: ' + fmt(getRanchVal(key, rn, sc))">{{ getRanchVal(key, rn, sc) > 0 ? fmt(getRanchVal(key, rn, sc)) : '' }}</span>
+                                </span>
+                              } @else {
+                                {{ getRanchVal(key, rn, sc) > 0 ? fmt(getRanchVal(key, rn, sc)) : '' }}
+                              }
                             </td>
                           }
                           @if (showWeekDif()) {
@@ -165,10 +186,20 @@ type HeadcountType = 'planta' | 'contratistas';
                         @if (showTotal()) {
                           @if (showTotalWeeks()) {
                             @for (key of weekKeys(); track key) {
-                            <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
+                            <td [style.padding]="showExcelComparison() ? '3px 1px' : '3px 6px'" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                                 [style.color]="getWeekTotalVal(key, sc) > 0 ? '#5a1414' : '#ccc'"
                                 [style.fontWeight]="getWeekTotalVal(key, sc) > 0 ? '700' : '400'">
-                              {{ getWeekTotalVal(key, sc) > 0 ? fmt(getWeekTotalVal(key, sc)) : '' }}
+                              @if (showExcelComparison()) {
+                                @let excelAmount = getExcelAmount(sc);
+                                <span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:1px;white-space:nowrap;line-height:1;">
+                                  @if (excelAmount > 0) {
+                                    <span [title]="'Excel: ' + fmt(excelAmount)" style="padding:1px 1px;border-radius:3px;background:#fef3c7;color:#713f12;font-weight:700;">{{ fmtExcelAmount(excelAmount) }}</span>
+                                  }
+                                  <span [title]="'Sistema: ' + fmt(getWeekTotalVal(key, sc))">{{ getWeekTotalVal(key, sc) > 0 ? fmt(getWeekTotalVal(key, sc)) : '' }}</span>
+                                </span>
+                              } @else {
+                                {{ getWeekTotalVal(key, sc) > 0 ? fmt(getWeekTotalVal(key, sc)) : '' }}
+                              }
                             </td>
                           }
                           @let wkDif = getWeekTotalDif(sc);
@@ -695,10 +726,20 @@ type HeadcountType = 'planta' | 'contratistas';
                           </td>
                           @for (rn of activeRanchesInData(); track rn) {
                             @for (key of weekKeys(); track key) {
-                              <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
+                              <td [style.padding]="showExcelComparison() ? '3px 1px' : '3px 6px'" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                                   [style.color]="getRanchVal(key, rn, sc) > 0 ? '#5a1414' : '#ccc'"
                                   [style.fontWeight]="getRanchVal(key, rn, sc) > 0 ? '600' : '400'">
-                                {{ getRanchVal(key, rn, sc) > 0 ? fmt(getRanchVal(key, rn, sc)) : '' }}
+                                @if (showExcelComparison()) {
+                                  @let excelAmount = getExcelRanchAmount(rn, sc);
+                                  <span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:1px;white-space:nowrap;line-height:1;">
+                                    @if (excelAmount > 0) {
+                                      <span [title]="'Excel: ' + fmt(excelAmount)" style="padding:1px 1px;border-radius:3px;background:#fef3c7;color:#713f12;font-weight:700;">{{ fmtExcelAmount(excelAmount) }}</span>
+                                    }
+                                    <span [title]="'Sistema: ' + fmt(getRanchVal(key, rn, sc))">{{ getRanchVal(key, rn, sc) > 0 ? fmt(getRanchVal(key, rn, sc)) : '' }}</span>
+                                  </span>
+                                } @else {
+                                  {{ getRanchVal(key, rn, sc) > 0 ? fmt(getRanchVal(key, rn, sc)) : '' }}
+                                }
                               </td>
                             }
                             @if (showWeekDif()) {
@@ -711,10 +752,20 @@ type HeadcountType = 'planta' | 'contratistas';
                           }                      @if (showTotal()) {
                         @if (showTotalWeeks()) {
                           @for (key of weekKeys(); track key) {
-                          <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
+                          <td [style.padding]="showExcelComparison() ? '3px 1px' : '3px 6px'" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;"
                               [style.color]="getWeekTotalVal(key, sc) > 0 ? '#5a1414' : '#ccc'"
                               [style.fontWeight]="getWeekTotalVal(key, sc) > 0 ? '700' : '400'">
-                            {{ getWeekTotalVal(key, sc) > 0 ? fmt(getWeekTotalVal(key, sc)) : '' }}
+                            @if (showExcelComparison()) {
+                              @let excelAmount = getExcelAmount(sc);
+                              <span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:1px;white-space:nowrap;line-height:1;">
+                                @if (excelAmount > 0) {
+                                  <span [title]="'Excel: ' + fmt(excelAmount)" style="padding:1px 1px;border-radius:3px;background:#fef3c7;color:#713f12;font-weight:700;">{{ fmtExcelAmount(excelAmount) }}</span>
+                                }
+                                <span [title]="'Sistema: ' + fmt(getWeekTotalVal(key, sc))">{{ getWeekTotalVal(key, sc) > 0 ? fmt(getWeekTotalVal(key, sc)) : '' }}</span>
+                              </span>
+                            } @else {
+                              {{ getWeekTotalVal(key, sc) > 0 ? fmt(getWeekTotalVal(key, sc)) : '' }}
+                            }
                           </td>
                         }
                         @let wkDif = getWeekTotalDif(sc);
@@ -820,10 +871,20 @@ type HeadcountType = 'planta' | 'contratistas';
                 </td>
                 @for (rn of activeRanchesInData(); track rn) {
                   @for (key of weekKeys(); track key) {
-                    <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                    <td [style.padding]="showExcelComparison() ? '3px 1px' : '3px 6px'" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
                         [style.color]="getGrandRanchVal(key, rn) > 0 ? '#5a1414' : '#ccc'"
                         [style.fontWeight]="getGrandRanchVal(key, rn) > 0 ? '700' : '400'">
-                      {{ getGrandRanchVal(key, rn) > 0 ? fmt(getGrandRanchVal(key, rn)) : '' }}
+                      @if (showExcelComparison()) {
+                        @let excelAmount = getExcelRanchGrandTotal(rn);
+                        <span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:1px;white-space:nowrap;line-height:1;">
+                          @if (excelAmount > 0) {
+                            <span [title]="'Excel: ' + fmt(excelAmount)" style="padding:1px 1px;border-radius:3px;background:#fef3c7;color:#713f12;font-weight:700;">{{ fmtExcelAmount(excelAmount) }}</span>
+                          }
+                          <span [title]="'Sistema: ' + fmt(getGrandRanchVal(key, rn))">{{ getGrandRanchVal(key, rn) > 0 ? fmt(getGrandRanchVal(key, rn)) : '' }}</span>
+                        </span>
+                      } @else {
+                        {{ getGrandRanchVal(key, rn) > 0 ? fmt(getGrandRanchVal(key, rn)) : '' }}
+                      }
                     </td>
                   }
                   @if (showWeekDif()) {
@@ -837,10 +898,20 @@ type HeadcountType = 'planta' | 'contratistas';
                 @if (showTotal()) {
                   @if (showTotalWeeks()) {
                     @for (key of weekKeys(); track key) {
-                    <td style="padding:3px 6px;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
+                    <td [style.padding]="showExcelComparison() ? '3px 1px' : '3px 6px'" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;text-align:right;background:var(--pt-tot-bg);"
                         [style.color]="getGrandWeekTotal(key) > 0 ? '#5a1414' : '#ccc'"
                         [style.fontWeight]="getGrandWeekTotal(key) > 0 ? '700' : '400'">
-                      {{ getGrandWeekTotal(key) > 0 ? fmt(getGrandWeekTotal(key)) : '' }}
+                      @if (showExcelComparison()) {
+                        @let excelAmount = getExcelGrandTotal();
+                        <span style="display:inline-flex;align-items:center;justify-content:flex-end;gap:1px;white-space:nowrap;line-height:1;">
+                          @if (excelAmount > 0) {
+                            <span [title]="'Excel: ' + fmt(excelAmount)" style="padding:1px 1px;border-radius:3px;background:#fef3c7;color:#713f12;font-weight:700;">{{ fmtExcelAmount(excelAmount) }}</span>
+                          }
+                          <span [title]="'Sistema: ' + fmt(getGrandWeekTotal(key))">{{ getGrandWeekTotal(key) > 0 ? fmt(getGrandWeekTotal(key)) : '' }}</span>
+                        </span>
+                      } @else {
+                        {{ getGrandWeekTotal(key) > 0 ? fmt(getGrandWeekTotal(key)) : '' }}
+                      }
                     </td>
                   }
                   @let grandWkDif = getGrandWeekDif();
@@ -956,18 +1027,40 @@ export class ServiciosViewComponent {
     { key: 'contratistas' as const, label: 'NÚMERO DE PERSONAS CONTRATISTAS' },
   ];
 
-  constructor(protected stateService: StateService) {}
+  constructor(
+    protected stateService: StateService,
+    private amountComparisonService: AmountComparisonService,
+  ) {}
 
   protected state = this.stateService.state;
   protected data = this.stateService.data;
+  protected excelComparison = this.amountComparisonService.comparison;
 
   protected isManoObra = computed(() => this.state().cat === 'COSTO MANO DE OBRA');
+  protected showExcelComparison = computed(() =>
+    this.comparisonWeekIsSelected() && this.weekKeys().length === 1
+  );
   protected activeRanches = this.stateService.activeRanchesList;
   protected showTotalWeeks = computed(() =>
     this.state().activeRanches.includes('Todos') || this.state().activeRanches.length !== 1
   );
   protected showTotal = computed(() => this.showTotalWeeks() || this.showYearTotals());
   protected showYearTotals = computed(() => this.weekKeys().length >= 2);
+
+  private comparisonWeekIsSelected(): boolean {
+    const comparison = this.excelComparison();
+    const state = this.state();
+    const selectedYears = Object.entries(state.activeYears)
+      .filter(([, active]) => active)
+      .map(([year]) => Number(year));
+    return this.isManoObra()
+      && state.currency === 'mxn'
+      && !!comparison
+      && selectedYears.length === 1
+      && selectedYears[0] === comparison.year
+      && state.fromWeek === comparison.week
+      && state.toWeek === comparison.week;
+  }
 
   // ── Expandable groups state ──
   protected expandedGroups: Record<string, boolean> = {};
@@ -1148,6 +1241,13 @@ export class ServiciosViewComponent {
         map[key][rk] = (map[key][rk] || 0) + (ranches[rn] || 0);
       }
     }
+    if (this.comparisonWeekIsSelected()) {
+      const comparison = this.excelComparison();
+      if (comparison) {
+        const key = `${comparison.year}-${comparison.week}`;
+        if (!map[key]) map[key] = { _year: comparison.year, _week: comparison.week, date_range: '' };
+      }
+    }
     return map;
   });
 
@@ -1163,7 +1263,10 @@ export class ServiciosViewComponent {
           record.year === year && record.week === week
           && ((record.hc_planta_total || 0) > 0 || (record.hc_contratistas_total || 0) > 0)
         );
-        return hasCost || hasHeadcount;
+        const comparison = this.excelComparison();
+        const hasExcelAmounts = this.comparisonWeekIsSelected()
+          && comparison?.year === year && comparison.week === week;
+        return hasCost || hasHeadcount || hasExcelAmounts;
       })
       .sort((a, b) => {
         const [ay, aw] = a.split('-').map(Number);
@@ -1192,7 +1295,7 @@ export class ServiciosViewComponent {
             const hasHeadcount = this.headcountTypes.some(type => this.showTotal()
               ? this.getHcVal(key, subcat, type.key) > 0
               : ranches.some(ranch => this.getHcRanchVal(key, ranch, subcat, type.key) > 0));
-            if (hasHeadcount) set.add(subcat);
+            if (hasHeadcount || this.getExcelAmount(subcat) > 0) set.add(subcat);
           }
         }
       }
@@ -1234,7 +1337,9 @@ export class ServiciosViewComponent {
         const hasHeadcount = this.moGroups.some(group => group.subcats.some(subcat =>
           this.headcountTypes.some(type => this.getHcRanchVal(key, rn, subcat, type.key) > 0)
         ));
-        return hasCost || hasHeadcount;
+        const hasExcelAmount = this.comparisonWeekIsSelected()
+          && (this.excelComparison()?.rows.some(row => row.ranch === rn && row.amount > 0) ?? false);
+        return hasCost || hasHeadcount || hasExcelAmount;
       }));
 
       // Step 2: also include any ranches from data that are in the allowed list
@@ -1244,6 +1349,14 @@ export class ServiciosViewComponent {
           const rn = prop.split('__r__')[1];
           if (result.includes(rn)) continue;
           if (allowedRanches.includes(rn)) result.push(rn);
+        }
+      }
+
+      if (this.comparisonWeekIsSelected()) {
+        for (const row of this.excelComparison()?.rows || []) {
+          if (row.ranch !== 'Operativo' && allowedRanches.includes(row.ranch) && !result.includes(row.ranch)) {
+            result.push(row.ranch);
+          }
         }
       }
 
@@ -1272,10 +1385,14 @@ export class ServiciosViewComponent {
 
   // ── Column counts ──
   protected showWeekDif = computed(() => this.weekKeys().length > 1);
-  protected nColsPerRanch = computed(() => Math.max(this.weekKeys().length, 0) + (this.showWeekDif() ? 1 : 0));
+  protected nColsPerRanch = computed(() =>
+    Math.max(this.weekKeys().length, 0) + (this.showWeekDif() ? 1 : 0)
+  );
   protected nTotalCols = computed(() => {
     const yrs = this.totYears();
-    const weeklyCols = this.showTotalWeeks() ? this.nColsPerRanch() : 0;
+    const weeklyCols = this.showTotalWeeks()
+      ? Math.max(this.weekKeys().length, 0) + (this.showWeekDif() ? 1 : 0)
+      : 0;
     const yearCols = this.showYearTotals()
       ? yrs.length + (this.showTotalWeeks() && yrs.length >= 2 ? 1 : 0)
       : 0;
@@ -1333,6 +1450,7 @@ export class ServiciosViewComponent {
         if (this.headcountTypes.some(type => this.showTotal()
           ? this.getHcVal(k, sc, type.key) > 0
           : ranches.some(rn => this.getHcRanchVal(k, rn, sc, type.key) > 0))) return true;
+        if (this.getExcelAmount(sc) > 0) return true;
       }
     }
     return false;
@@ -1363,6 +1481,39 @@ export class ServiciosViewComponent {
       );
     }
     return (wk[subcat] as number) || 0;
+  }
+
+  private excelRowsForCurrentRanchFilter() {
+    if (!this.comparisonWeekIsSelected()) return [];
+    const rows = this.excelComparison()?.rows || [];
+    if (this.state().activeRanches.includes('Todos')) return rows;
+    const visibleRanches = new Set(this.activeRanchesInData());
+    return rows.filter(row => visibleRanches.has(row.ranch));
+  }
+
+  protected getExcelAmount(subcat: string): number {
+    return this.excelRowsForCurrentRanchFilter()
+      .filter(row => row.subcat === subcat)
+      .reduce((total, row) => total + row.amount, 0);
+  }
+
+  protected getExcelRanchAmount(ranch: string, subcat: string): number {
+    if (!this.comparisonWeekIsSelected()) return 0;
+    return (this.excelComparison()?.rows || [])
+      .filter(row => row.ranch === ranch && row.subcat === subcat)
+      .reduce((total, row) => total + row.amount, 0);
+  }
+
+  protected getExcelRanchGrandTotal(ranch: string): number {
+    if (!this.comparisonWeekIsSelected()) return 0;
+    return (this.excelComparison()?.rows || [])
+      .filter(row => row.ranch === ranch)
+      .reduce((total, row) => total + row.amount, 0);
+  }
+
+  protected getExcelGrandTotal(): number {
+    return this.excelRowsForCurrentRanchFilter()
+      .reduce((total, row) => total + row.amount, 0);
   }
 
   protected getWeekTotalDif(subcat: string): number {
@@ -1722,6 +1873,12 @@ export class ServiciosViewComponent {
     const neg = n < 0;
     const s = Math.abs(n);
     return (neg ? '-$' : '$') + Math.round(s).toLocaleString('en-US');
+  }
+
+  protected fmtExcelAmount(n: number): string {
+    if (!Number.isFinite(n)) return '';
+    const rounded = Math.round(Math.abs(n));
+    return (n < 0 ? '-$' : '$') + rounded.toLocaleString('en-US');
   }
 
   protected fmtHc(n: number): string {

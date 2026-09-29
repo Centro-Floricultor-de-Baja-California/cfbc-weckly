@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import math
 import re
 import time
 import unicodedata
@@ -22,8 +23,14 @@ DASHBOARD_RANCHES = {
     "isabela": "Isabela",
     "christina": "Christina",
     "cecilia": "Cecilia",
+    "cecilia 25": "Cecilia 25",
+    "cecilia25": "Cecilia 25",
     "poscosecha": "Poscosecha",
     "vivero": "Propagacion",
+}
+AMOUNT_RANCHES = {
+    **DASHBOARD_RANCHES,
+    "administracion": "Administracion",
 }
 DASHBOARD_GENERAL_SECTIONS = {
     "operativos": "Operativo",
@@ -55,6 +62,21 @@ POSCOSECHA_CONCEPTS = {
     "consumer": "Prod. Patina y rec",
     "cortador": "Prod. Patina y rec",
     "aux. limpieza": "Alm.upc y empaq",
+}
+AMOUNT_CONCEPTS = {
+    **DASHBOARD_CONCEPTS,
+    "ing. y admon.": "Ing. Y Admon.",
+    "ing y admon": "Ing. Y Admon.",
+    "admon posco": "Admon Posco",
+    "veladores": "Veladores",
+    "velador": "Veladores",
+    "contratista": "Contratista y com.",
+    "contratista y com.": "Contratista y com.",
+    "imss/info/rcv": "IMSS,INFO Y RCV",
+    "imss info rcv": "IMSS,INFO Y RCV",
+    "imss,info y rcv": "IMSS,INFO Y RCV",
+    "imp. 1.8%": "Imp. 1.8%",
+    "esquejes": "Esquejes",
 }
 OPERATIVO_CONCEPTS = {
     "chofer": "Transporte",
@@ -152,6 +174,109 @@ def parse_personnel_workbook(content: bytes) -> list[dict[str, Any]]:
     if not result:
         raise ValueError("El archivo no contiene filas de conteo para importar.")
     return result
+
+
+def parse_personnel_amount_comparison(week_code: str, content: bytes) -> dict[str, Any]:
+    """Read Excel's Planta+Contratistas total amount by ranch/activity for a local comparison."""
+    code, year, week = _parse_week_code(week_code)
+    try:
+        workbook = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+    except Exception as exc:
+        raise ValueError("No se pudo abrir el archivo. Selecciona el Excel semanal .xlsx.") from exc
+
+    worksheet = workbook.active
+    rows = worksheet.iter_rows(values_only=True)
+    header = next(rows, ())
+    subheader = next(rows, ())
+    if (
+        _normalize(header[0] if len(header) > 0 else None) != "area"
+        or _normalize(subheader[1] if len(subheader) > 1 else None) != "planta"
+        or _normalize(subheader[2] if len(subheader) > 2 else None) != "contratistas"
+        or _normalize(subheader[3] if len(subheader) > 3 else None) != "total"
+        or _normalize(subheader[4] if len(subheader) > 4 else None) != "planta"
+        or _normalize(subheader[5] if len(subheader) > 5 else None) != "contratistas"
+        or _normalize(subheader[6] if len(subheader) > 6 else None) != "total"
+    ):
+        raise ValueError("El formato no coincide con AF.xlsx: se esperan columnas de personas e importes con Planta, Contratistas y Total.")
+
+    aggregated: dict[tuple[str, str], float] = {}
+    current_section = ""
+    unmapped_sections: set[str] = set()
+    unmapped_concepts: set[str] = set()
+
+    def parse_amount(value: Any, row_number: int, column_name: str) -> float | None:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+        try:
+            amount = float(str(value).replace(",", "").strip())
+        except (TypeError, ValueError):
+            raise ValueError(f"El importe de {column_name} en la fila {row_number} no es numérico.")
+        if not math.isfinite(amount):
+            raise ValueError(f"El importe de {column_name} en la fila {row_number} no es válido.")
+        return amount
+
+    for row_number, row in enumerate(rows, start=3):
+        padded = list(row) + [None] * max(0, 7 - len(row))
+        label = str(padded[0] or "").strip()
+        if not label:
+            continue
+        label_key = _normalize(label)
+        if label_key in {"area", "totales", "total"}:
+            continue
+
+        if all(value is None or (isinstance(value, str) and not value.strip()) for value in padded[1:7]):
+            current_section = label
+            continue
+        if not current_section:
+            raise ValueError(f"No se identificó el rancho o sección antes de la fila {row_number}.")
+
+        section_key = _normalize(current_section)
+        if section_key in DASHBOARD_GENERAL_SECTIONS:
+            ranch = "Operativo"
+            subcat = OPERATIVO_CONCEPTS.get(label_key)
+        else:
+            ranch = AMOUNT_RANCHES.get(section_key)
+            subcat = (
+                POSCOSECHA_CONCEPTS.get(label_key) or AMOUNT_CONCEPTS.get(label_key)
+                if section_key == "poscosecha"
+                else AMOUNT_CONCEPTS.get(label_key)
+            )
+
+        if not ranch:
+            unmapped_sections.add(current_section)
+            continue
+        if not subcat:
+            unmapped_concepts.add(label)
+            continue
+
+        total_amount = parse_amount(padded[6], row_number, "Total")
+        if total_amount is None:
+            plant_value = parse_amount(padded[4], row_number, "Planta")
+            contractor_value = parse_amount(padded[5], row_number, "Contratistas")
+            if plant_value is None and contractor_value is None:
+                continue
+            plant_amount = plant_value or 0
+            contractor_amount = contractor_value or 0
+            total_amount = plant_amount + contractor_amount
+
+        key = (ranch, subcat)
+        aggregated[key] = round(aggregated.get(key, 0) + total_amount, 2)
+
+    workbook.close()
+    if not aggregated:
+        raise ValueError("El archivo no contiene importes de actividades reconocidas para comparar.")
+
+    return {
+        "week_code": code,
+        "year": year,
+        "week": week,
+        "rows": [
+            {"ranch": ranch, "subcat": subcat, "amount": amount}
+            for (ranch, subcat), amount in sorted(aggregated.items())
+        ],
+        "unmapped_sections": sorted(unmapped_sections),
+        "unmapped_concepts": sorted(unmapped_concepts),
+    }
 
 
 def _graph_credentials() -> tuple[dict[str, str], str]:

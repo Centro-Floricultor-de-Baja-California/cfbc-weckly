@@ -2,6 +2,7 @@ import { Component, OnInit, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../services/api.service';
 import { StateService } from '../../services/state.service';
+import { AmountComparisonService } from '../../services/amount-comparison.service';
 import { ViewType, CfbcData } from '../../models/types';
 import { LoadingScreenComponent } from '../loading-screen/loading-screen.component';
 import { ToolbarComponent } from '../toolbar/toolbar.component';
@@ -90,7 +91,7 @@ import { ProductPanelComponent } from '../product-panel/product-panel.component'
                     <h6 class="fw-bold mb-1" id="reload-data-title"><i class="fa-solid fa-cloud-arrow-down me-2" style="color:#0f766e"></i>Recargar datos</h6>
                     <p class="text-secondary small mb-0">Actualiza los datos desde las fuentes configuradas actualmente.</p>
                   </div>
-                  <button type="button" class="btn text-white fw-semibold" style="background:#0f766e" (click)="onReload()" [disabled]="isReloading() || isUploading()">
+                  <button type="button" class="btn text-white fw-semibold" style="background:#0f766e" (click)="onReload()" [disabled]="isReloading() || isUploading() || isComparingAmounts()">
                     @if (isReloading()) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Recargando... } @else { <i class="fa-solid fa-rotate me-2"></i>Recargar ahora }
                   </button>
                 </div>
@@ -102,20 +103,24 @@ import { ProductPanelComponent } from '../product-panel/product-panel.component'
                 <div class="row g-3">
                   <div class="col-md-4">
                     <label for="personal-week-code" class="form-label small fw-semibold">Semana</label>
-                    <input id="personal-week-code" type="text" class="form-control" inputmode="numeric" maxlength="4" placeholder="2638" [value]="personalWeekCode()" (input)="onPersonalWeekInput($event)" [disabled]="isUploading()" autocomplete="off">
+                    <input id="personal-week-code" type="text" class="form-control" inputmode="numeric" maxlength="4" placeholder="2638" [value]="personalWeekCode()" (input)="onPersonalWeekInput($event)" [disabled]="isUploading() || isComparingAmounts()" autocomplete="off">
                     <div class="form-text">Ejemplo: 2638 = año 2026, semana 38.</div>
                   </div>
                   <div class="col-md-8">
                     <label for="personal-count-file" class="form-label small fw-semibold">Archivo Excel</label>
-                    <input id="personal-count-file" type="file" class="form-control" accept=".xlsx" (change)="onPersonalFileChange($event)" [disabled]="isUploading()">
+                    <input id="personal-count-file" type="file" class="form-control" accept=".xlsx" (change)="onPersonalFileChange($event)" [disabled]="isUploading() || isComparingAmounts()">
                     @if (personalFileName()) {
                       <div class="form-text text-truncate" title="{{ personalFileName() }}">Seleccionado: {{ personalFileName() }}</div>
                     }
                   </div>
                 </div>
-                <div class="alert alert-info small mt-3 mb-3 py-2">Se guardan únicamente los conteos de Planta y Contratistas en una pestaña con el código semanal. Por ahora, Ramona se asociará con Campo RM; las demás secciones se conservarán mientras confirmamos sus equivalencias.</div>
-                <div class="d-flex justify-content-end">
-                  <button type="button" class="btn btn-light border fw-semibold" (click)="onUploadPersonal()" [disabled]="!canUploadPersonal() || isUploading() || isReloading()">
+                <div class="alert alert-info small mt-3 mb-3 py-2">Al usar “Subir conteo”, solo se guardan los conteos de Planta y Contratistas en la pestaña con el código semanal. Ramona se asocia con Campo RM.</div>
+                <div class="alert alert-warning small mb-3 py-2">La comparación usa el Total de importes del Excel (Planta + Contratistas). Es temporal: solo se muestra en pantalla y no guarda montos en SharePoint. Para verla, selecciona una sola semana y la moneda MXN.</div>
+                <div class="d-flex flex-wrap justify-content-end gap-2">
+                  <button type="button" class="btn btn-warning border fw-semibold" (click)="onComparePersonalAmounts()" [disabled]="!canUploadPersonal() || isUploading() || isComparingAmounts() || isReloading()">
+                    @if (isComparingAmounts()) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Preparando... } @else { <i class="fa-solid fa-scale-balanced me-2"></i>Comparar montos Excel }
+                  </button>
+                  <button type="button" class="btn btn-light border fw-semibold" (click)="onUploadPersonal()" [disabled]="!canUploadPersonal() || isUploading() || isComparingAmounts() || isReloading()">
                     @if (isUploading()) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Subiendo... } @else { <i class="fa-solid fa-file-arrow-up me-2"></i>Subir conteo }
                   </button>
                 </div>
@@ -145,6 +150,7 @@ export class MainDashboardComponent implements OnInit {
   protected adminMessageKind = signal<'success' | 'error'>('success');
   protected isReloading = signal(false);
   protected isUploading = signal(false);
+  protected isComparingAmounts = signal(false);
   protected personalWeekCode = signal('');
   protected personalFileName = signal('');
   protected personalFile = signal<File | null>(null);
@@ -187,11 +193,12 @@ export class MainDashboardComponent implements OnInit {
     this.personalFileName.set('');
     this.personalFile.set(null);
     this.isUploading.set(false);
+    this.isComparingAmounts.set(false);
     this.adminPanelOpen.set(true);
   }
 
   protected closeAdminPanel() {
-    if (this.isUploading()) return;
+    if (this.isUploading() || this.isComparingAmounts()) return;
     const token = this.adminToken();
     this.adminPanelOpen.set(false);
     this.adminToken.set(null);
@@ -205,6 +212,7 @@ export class MainDashboardComponent implements OnInit {
   protected onPersonalWeekInput(event: Event) {
     const value = (event.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 4);
     this.personalWeekCode.set(value);
+    this.amountComparisonService.clear();
     this.adminMessage.set('');
   }
 
@@ -212,6 +220,7 @@ export class MainDashboardComponent implements OnInit {
     const file = (event.target as HTMLInputElement).files?.[0];
     this.personalFileName.set(file?.name ?? '');
     this.personalFile.set(file ?? null);
+    this.amountComparisonService.clear();
     this.adminMessage.set('');
   }
 
@@ -255,6 +264,31 @@ export class MainDashboardComponent implements OnInit {
     });
   }
 
+  protected onComparePersonalAmounts() {
+    const token = this.adminToken();
+    const file = this.personalFile();
+    const weekCode = this.personalWeekCode();
+    if (!token || !file || !this.canUploadPersonal() || this.isComparingAmounts()) return;
+
+    this.isComparingAmounts.set(true);
+    this.adminMessage.set('');
+    this.apiService.compareHeadcountAmounts(file, weekCode, token).subscribe({
+      next: result => {
+        this.amountComparisonService.set(result);
+        this.isComparingAmounts.set(false);
+        this.adminMessageKind.set('success');
+        const unmapped = [...result.unmapped_sections, ...result.unmapped_concepts];
+        const note = unmapped.length ? ` No se reconocieron estas filas: ${[...new Set(unmapped)].join(', ')}.` : '';
+        this.adminMessage.set(`Comparación temporal lista para la semana ${result.week_code}. Cierra este panel para verla en amarillo; no se guardaron importes.${note}`);
+      },
+      error: (err: any) => {
+        this.isComparingAmounts.set(false);
+        this.adminMessageKind.set('error');
+        this.adminMessage.set(err?.error?.detail || err.message || 'No se pudieron leer los importes del Excel.');
+      },
+    });
+  }
+
   protected onReload() {
     const token = this.adminToken();
     if (!token || this.isReloading()) return;
@@ -283,7 +317,8 @@ export class MainDashboardComponent implements OnInit {
 
   constructor(
     protected stateService: StateService,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private amountComparisonService: AmountComparisonService,
   ) {
     let lastCat = this.stateService.state().cat;
     effect(() => {

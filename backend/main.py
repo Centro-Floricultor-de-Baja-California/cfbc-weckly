@@ -35,7 +35,12 @@ import backend.secrets_compat  # noqa: F401
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data_extractor import get_datos
-from backend.headcount_upload import add_dashboard_headcounts, parse_personnel_workbook, save_personnel_week
+from backend.headcount_upload import (
+    add_dashboard_headcounts,
+    parse_personnel_amount_comparison,
+    parse_personnel_workbook,
+    save_personnel_week,
+)
 
 app = FastAPI(title="CFBC WECKLY API", version="1.0.0")
 _admin_sessions: dict[str, float] = {}
@@ -214,6 +219,25 @@ async def upload_headcount(week_code: str = Form(...), file: UploadFile = File(.
 
     _data_cache = None
     return result
+
+
+@app.post("/api/admin/headcount/compare", dependencies=[Depends(_require_admin_session)])
+async def compare_headcount_amounts(week_code: str = Form(...), file: UploadFile = File(...)):
+    """Read Excel amount totals for a temporary local comparison; never writes to SharePoint."""
+    filename = file.filename or ""
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="Selecciona un archivo Excel .xlsx.")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="El archivo seleccionado está vacío.")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="El archivo supera el límite de 10 MB.")
+
+    try:
+        return parse_personnel_amount_comparison(week_code, content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/config")
